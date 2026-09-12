@@ -49,7 +49,7 @@ Add `smart_search_dropdown_pro` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  smart_search_dropdown_pro: ^1.0.1
+  smart_search_dropdown_pro: ^1.0.2
 ```
 
 Include the assets in your `pubspec.yaml` if you want to use package showcase graphics or bundled assets:

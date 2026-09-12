@@ -1,0 +1,26 @@
+name: smart_search_dropdown_pro
+description: A production-ready, highly customizable, and searchable Flutter dropdown package supporting single/multi-selection, remote API search, grouping, custom filtering, accessibility, and 16+ UI variations.
+version: 1.0.0
+homepage: https://github.com/smartdropdown/smart_search_dropdown_pro
+repository: https://github.com/smartdropdown/smart_search_dropdown_pro
+issue_tracker: https://github.com/smartdropdown/smart_search_dropdown_pro/issues
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+  flutter: '>=3.10.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+topics:
+  - dropdown
+  - search
+  - multi-select
+  - form
+  - ui

@@ -10,13 +10,19 @@ A production-ready, type-safe, highly customizable, and searchable Flutter dropd
 
 ## 📸 Visual Showcase & Assets
 
-`SmartSearchDropdown` comes with rich UI capabilities out of the box. Below is the visual preview showcasing various presentation modes and design variations:
+`SmartSearchDropdown` comes with rich UI capabilities out of the box. Below is the visual preview showcasing various presentation modes and design variations.
 
-![SmartSearchDropdown Pro Showcase](assets/smart_search_dropdown_pro_showcase.png)
+<p align="center">
+  <img
+    src="assets/smart_search_dropdown_pro_showcase.png"
+    alt="SmartSearchDropdown Pro Showcase"
+    width="100%"
+  />
+</p>
 
 > **Asset Path:** `assets/smart_search_dropdown_pro_showcase.png`
-> *Includes variations for single select, multi-select chips, grouped options, custom avatars, status badges, adaptive bottom sheets, and dark mode.*
 
+> Includes variations for single select, multi-select chips, grouped options, custom avatars, status badges, adaptive bottom sheets, and dark mode.
 ---
 
 ## 💡 About This Package

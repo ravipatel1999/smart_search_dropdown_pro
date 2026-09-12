@@ -1,4 +1,4 @@
-# 1.0.2
+# 1.0.3
 
 - Added showcase preview image (`assets/smart_search_dropdown_pro_showcase.png`) to README.
 - Renamed package to `smart_search_dropdown_pro`.

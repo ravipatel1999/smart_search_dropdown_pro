@@ -7,24 +7,15 @@ A production-ready, type-safe, highly customizable, and searchable Flutter dropd
 [![Flutter Platform](https://img.shields.io/badge/Platform-Android%20%7C%20iOS%20%7C%20Web%20%7C%20macOS%20%7C%20Windows%20%7C%20Linux-blue)](https://flutter.dev)
 
 ---
-
 ## 📸 Visual Showcase & Assets
 
 `SmartSearchDropdown` comes with rich UI capabilities out of the box. Below is the visual preview showcasing various presentation modes and design variations.
 
-<p align="center">
-  <img
-    src="assets/smart_search_dropdown_pro_showcase.png"
-    alt="SmartSearchDropdown Pro Showcase"
-    width="100%"
-  />
-</p>
+![SmartSearchDropdown Pro Showcase](https://raw.githubusercontent.com/ravipatel1999/smart_search_dropdown_pro/main/assets/smart_search_dropdown_pro_showcase.png)
 
 > **Asset Path:** `assets/smart_search_dropdown_pro_showcase.png`
 
 > Includes variations for single select, multi-select chips, grouped options, custom avatars, status badges, adaptive bottom sheets, and dark mode.
----
-
 ## 💡 About This Package
 
 `smart_search_dropdown_pro` was created to solve the fragmentation in Flutter dropdown implementations. Instead of bringing in separate packages for multi-select chips, search filtering, remote API calls, or mobile bottom sheets, `SmartSearchDropdown` unifies all of them into a single, cohesive, performant component.
@@ -49,7 +40,7 @@ Add `smart_search_dropdown_pro` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  smart_search_dropdown_pro: ^1.0.2
+  smart_search_dropdown_pro: ^1.0.3
 ```
 
 Include the assets in your `pubspec.yaml` if you want to use package showcase graphics or bundled assets:

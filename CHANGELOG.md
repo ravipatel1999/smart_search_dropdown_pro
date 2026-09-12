@@ -1,3 +1,7 @@
+## 1.0.5
+
+- Optimized `pubspec.yaml` description length (175 characters) to comply with pub.dev Pana analysis rules and achieve 160/160 pub points.
+
 ## 1.0.4
 
 - Improved pub.dev package discoverability metadata.

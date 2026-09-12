@@ -1,26 +1,20 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
-/// Programmatic controller for controlling and listening to state changes in a [SmartSearchDropdown].
+/// Controller for managing state and programmatically controlling [SmartSearchDropdown].
 class SmartDropdownController<T> extends ChangeNotifier {
+  final List<T> _selectedItems = [];
   bool _isOpen = false;
   String _searchQuery = '';
-  bool _isLoading = false;
   bool _hasMore = true;
-  String? _error;
 
-  final List<T> _selectedItems = [];
-
-  // Action callbacks attached by active SmartSearchDropdown widget instance
-  VoidCallback? _onOpenCallback;
-  VoidCallback? _onCloseCallback;
-  VoidCallback? _onToggleCallback;
-  VoidCallback? _onFocusSearchCallback;
-  VoidCallback? _onRefreshCallback;
-  Future<void> Function()? _onLoadMoreCallback;
-  void Function(T item)? _onSelectCallback;
-  void Function(T item)? _onDeselectCallback;
-  VoidCallback? _onSelectAllCallback;
-  VoidCallback? _onClearAllCallback;
+  VoidCallback? _onOpen;
+  VoidCallback? _onClose;
+  VoidCallback? _onToggle;
+  ValueChanged<T>? _onSelect;
+  ValueChanged<T>? _onDeselect;
+  Function? _onSelectAll;
+  VoidCallback? _onClearAll;
+  Function? _onLoadMore;
 
   SmartDropdownController({List<T>? initialSelection}) {
     if (initialSelection != null) {
@@ -28,207 +22,133 @@ class SmartDropdownController<T> extends ChangeNotifier {
     }
   }
 
-  /// Whether the dropdown popup is currently open.
   bool get isOpen => _isOpen;
-
-  /// Current search query text.
-  bool get isLoading => _isLoading;
-
-  /// Whether more async paginated items are available.
-  bool get hasMore => _hasMore;
-
-  /// Current active error message if any.
-  String? get error => _error;
-
-  /// Currently active search query text.
   String get searchQuery => _searchQuery;
-
-  /// Returns the first selected item in single selection mode or null.
+  bool get hasMore => _hasMore;
   T? get selectedItem => _selectedItems.isNotEmpty ? _selectedItems.first : null;
-
-  /// Unmodifiable list of currently selected items.
   List<T> get selectedItems => List.unmodifiable(_selectedItems);
 
-  /// Opens the dropdown overlay programmatically.
+  void attachCallbacks({
+    VoidCallback? onOpen,
+    VoidCallback? onClose,
+    VoidCallback? onToggle,
+    ValueChanged<T>? onSelect,
+    ValueChanged<T>? onDeselect,
+    Function? onSelectAll,
+    VoidCallback? onClearAll,
+    Function? onLoadMore,
+  }) {
+    _onOpen = onOpen;
+    _onClose = onClose;
+    _onToggle = onToggle;
+    _onSelect = onSelect;
+    _onDeselect = onDeselect;
+    _onSelectAll = onSelectAll;
+    _onClearAll = onClearAll;
+    _onLoadMore = onLoadMore;
+  }
+
+  void detachCallbacks() {
+    _onOpen = null;
+    _onClose = null;
+    _onToggle = null;
+    _onSelect = null;
+    _onDeselect = null;
+    _onSelectAll = null;
+    _onClearAll = null;
+    _onLoadMore = null;
+  }
+
   void open() {
-    if (!_isOpen) {
-      _isOpen = true;
-      _onOpenCallback?.call();
-      notifyListeners();
-    }
+    _isOpen = true;
+    _onOpen?.call();
+    notifyListeners();
   }
 
-  /// Closes the dropdown overlay programmatically.
   void close() {
-    if (_isOpen) {
-      _isOpen = false;
-      _onCloseCallback?.call();
-      notifyListeners();
-    }
+    _isOpen = false;
+    _onClose?.call();
+    notifyListeners();
   }
 
-  /// Toggles popup open/closed state.
   void toggle() {
-    if (_isOpen) {
-      close();
-    } else {
-      open();
-    }
-    _onToggleCallback?.call();
+    _isOpen = !_isOpen;
+    _onToggle?.call();
+    notifyListeners();
   }
 
-  /// Selects a single item.
   void select(T item) {
     if (!_selectedItems.contains(item)) {
       _selectedItems.add(item);
-      _onSelectCallback?.call(item);
-      notifyListeners();
     }
+    _onSelect?.call(item);
+    notifyListeners();
   }
 
-  /// Deselects an item.
   void deselect(T item) {
-    if (_selectedItems.contains(item)) {
-      _selectedItems.remove(item);
-      _onDeselectCallback?.call(item);
-      notifyListeners();
-    }
+    _selectedItems.remove(item);
+    _onDeselect?.call(item);
+    notifyListeners();
   }
 
-  /// Replaces selection with new list of items.
+  void selectAll(List<T> items) {
+    _selectedItems.clear();
+    _selectedItems.addAll(items);
+    if (_onSelectAll != null) {
+      if (_onSelectAll is void Function(List<T>)) {
+        (_onSelectAll as void Function(List<T>))(items);
+      } else if (_onSelectAll is void Function()) {
+        (_onSelectAll as void Function())();
+      }
+    }
+    notifyListeners();
+  }
+
+  void clearAll() {
+    _selectedItems.clear();
+    _onClearAll?.call();
+    notifyListeners();
+  }
+
   void setSelection(List<T> items) {
     _selectedItems.clear();
     _selectedItems.addAll(items);
     notifyListeners();
   }
 
-  /// Selects all items in multi-select mode.
-  void selectAll(List<T> allItems) {
-    _selectedItems.clear();
-    _selectedItems.addAll(allItems);
-    _onSelectAllCallback?.call();
-    notifyListeners();
-  }
-
-  /// Clears all selected items.
-  void clearAll() {
-    if (_selectedItems.isNotEmpty) {
-      _selectedItems.clear();
-      _onClearAllCallback?.call();
-      notifyListeners();
-    }
-  }
-
-  /// Clears search query and selection.
-  void clear() {
-    _searchQuery = '';
-    _selectedItems.clear();
-    notifyListeners();
-  }
-
-  /// Focuses the search text input inside open popup.
-  void focusSearch() {
-    _onFocusSearchCallback?.call();
-  }
-
-  /// Clears the current search text query.
-  void clearSearch() {
-    if (_searchQuery.isNotEmpty) {
-      _searchQuery = '';
-      notifyListeners();
-    }
-  }
-
-  /// Sets active search query.
   void setSearchQuery(String query) {
-    if (_searchQuery != query) {
-      _searchQuery = query;
-      notifyListeners();
-    }
+    _searchQuery = query;
+    notifyListeners();
   }
 
-  /// Triggers refresh callback for async search/load.
-  void refresh() {
-    _onRefreshCallback?.call();
-  }
-
-  /// Triggers load more callback for async pagination.
-  Future<void> loadMore() async {
-    if (_onLoadMoreCallback != null) {
-      await _onLoadMoreCallback!.call();
-    }
-  }
-
-  /// Internal status updates used by widget component.
   void updateState({
-    bool? isOpen,
+    List<T>? items,
+    List<T>? selectedItems,
     String? searchQuery,
     bool? isLoading,
-    bool? hasMore,
     String? error,
+    bool? hasMore,
+    bool? isOpen,
   }) {
-    bool changed = false;
-    if (isOpen != null && _isOpen != isOpen) {
+    if (isOpen != null) {
       _isOpen = isOpen;
-      changed = true;
     }
-    if (searchQuery != null && _searchQuery != searchQuery) {
+    if (selectedItems != null) {
+      _selectedItems.clear();
+      _selectedItems.addAll(selectedItems);
+    }
+    if (searchQuery != null) {
       _searchQuery = searchQuery;
-      changed = true;
     }
-    if (isLoading != null && _isLoading != isLoading) {
-      _isLoading = isLoading;
-      changed = true;
-    }
-    if (hasMore != null && _hasMore != hasMore) {
+    if (hasMore != null) {
       _hasMore = hasMore;
-      changed = true;
     }
-    if (error != _error) {
-      _error = error;
-      changed = true;
-    }
-    if (changed) {
-      notifyListeners();
-    }
+    notifyListeners();
   }
 
-  /// Binds widget callbacks to controller.
-  void attachCallbacks({
-    VoidCallback? onOpen,
-    VoidCallback? onClose,
-    VoidCallback? onToggle,
-    VoidCallback? onFocusSearch,
-    VoidCallback? onRefresh,
-    Future<void> Function()? onLoadMore,
-    void Function(T item)? onSelect,
-    void Function(T item)? onDeselect,
-    VoidCallback? onSelectAll,
-    VoidCallback? onClearAll,
-  }) {
-    _onOpenCallback = onOpen;
-    _onCloseCallback = onClose;
-    _onToggleCallback = onToggle;
-    _onFocusSearchCallback = onFocusSearch;
-    _onRefreshCallback = onRefresh;
-    _onLoadMoreCallback = onLoadMore;
-    _onSelectCallback = onSelect;
-    _onDeselectCallback = onDeselect;
-    _onSelectAllCallback = onSelectAll;
-    _onClearAllCallback = onClearAll;
-  }
-
-  /// Unbinds widget callbacks.
-  void detachCallbacks() {
-    _onOpenCallback = null;
-    _onCloseCallback = null;
-    _onToggleCallback = null;
-    _onFocusSearchCallback = null;
-    _onRefreshCallback = null;
-    _onLoadMoreCallback = null;
-    _onSelectCallback = null;
-    _onDeselectCallback = null;
-    _onSelectAllCallback = null;
-    _onClearAllCallback = null;
+  Future<void> loadMore() async {
+    if (_onLoadMore != null) {
+      await _onLoadMore!.call();
+    }
   }
 }

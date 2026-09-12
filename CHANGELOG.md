@@ -1,9 +1,17 @@
-# 1.0.3
+## 1.0.4
+
+- Improved pub.dev package discoverability metadata.
+- Added optimized pub.dev topics.
+- Improved README documentation and search relevance.
+- Improved documentation for API search and pagination.
+- Improved package showcase documentation.
+
+## 1.0.3
 
 - Added showcase preview image (`assets/smart_search_dropdown_pro_showcase.png`) to README.
 - Renamed package to `smart_search_dropdown_pro`.
 
-# 1.0.0
+## 1.0.0
 
 - Initial release of `smart_search_dropdown_pro`.
 - Flexible generic `<T>` searchable dropdown system for pub.dev.

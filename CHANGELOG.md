@@ -1,3 +1,20 @@
+## 1.0.6
+
+- **Production-Grade Remote Search & Race Condition Safety:**
+  - Implemented monotonic generation token system (`_searchGeneration`) dropping stale out-of-order network responses.
+  - Cancelled debouncers immediately on query change, search clear, and dropdown disposal.
+  - Added `SearchEmptyQueryBehavior` (`showInitialItems`, `callRemoteApi`, `clearResults`).
+- **Serialized Pagination & Deduplication:**
+  - Strictly serialized page loading to prevent concurrent or duplicate page requests.
+  - Added `preventDuplicates` and `itemIdExtractor` to deduplicate items across pages.
+  - Added `onLoadMoreWithQuery` callback supporting query-aware pagination.
+  - Prevented in-flight page responses of previous searches from contaminating new queries.
+- **Enhanced Error Handling & Controller:**
+  - Separated initial load error from inline pagination error with retry button footer.
+  - Added `retry()`, `retryPagination()`, and `refresh()` methods on `SmartDropdownController`.
+  - Added keyboard navigation support (`ArrowUp`, `ArrowDown`, `Enter`, `Escape`).
+  - Added full 12-case concurrency and race condition test suite.
+
 ## 1.0.5
 
 - Optimized `pubspec.yaml` description length (175 characters) to comply with pub.dev Pana analysis rules and achieve 160/160 pub points.

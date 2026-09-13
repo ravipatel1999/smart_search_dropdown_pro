@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../config/smart_dropdown_config.dart';
 import '../controllers/smart_dropdown_controller.dart';
 import '../models/dropdown_group.dart';
@@ -41,7 +42,13 @@ class SmartDropdownPopup<T> extends StatefulWidget {
   final ValueChanged<String>? onCreateOption;
 
   final bool isLoading;
+  final bool isLoadingInitial;
+  final bool isLoadingMore;
   final String? error;
+  final String? paginationError;
+  final VoidCallback? onRetry;
+  final VoidCallback? onRetryPagination;
+  final bool isRemoteSearch;
   final bool isMobileModal;
   final VoidCallback? onCloseModal;
 
@@ -71,7 +78,13 @@ class SmartDropdownPopup<T> extends StatefulWidget {
     required this.onClearAll,
     this.onCreateOption,
     this.isLoading = false,
+    this.isLoadingInitial = false,
+    this.isLoadingMore = false,
     this.error,
+    this.paginationError,
+    this.onRetry,
+    this.onRetryPagination,
+    this.isRemoteSearch = false,
     this.isMobileModal = false,
     this.onCloseModal,
   });
@@ -82,7 +95,9 @@ class SmartDropdownPopup<T> extends StatefulWidget {
 
 class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
   final ScrollController _scrollController = ScrollController();
+  final FocusNode _focusNode = FocusNode();
   bool _isFetchingMore = false;
+  int _focusedIndex = -1;
 
   @override
   void initState() {
@@ -104,11 +119,15 @@ class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
     widget.controller.removeListener(_onControllerChanged);
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
   void _onScroll() async {
     if (_isFetchingMore) return;
+    if (widget.controller.isLoadingMore || widget.isLoadingMore) return;
+    if (!widget.controller.hasMore) return;
+    if (widget.controller.isLoadingInitial || widget.isLoadingInitial) return;
     if (!_scrollController.hasClients) return;
 
     final maxScroll = _scrollController.position.maxScrollExtent;
@@ -116,17 +135,51 @@ class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
     final threshold = widget.config.pagination.scrollThreshold;
 
     if (maxScroll - currentScroll <= threshold) {
-      if (widget.controller.hasMore) {
-        setState(() => _isFetchingMore = true);
-        await widget.controller.loadMore();
-        if (mounted) {
-          setState(() => _isFetchingMore = false);
-        }
+      setState(() => _isFetchingMore = true);
+      await widget.controller.loadMore();
+      if (mounted) {
+        setState(() => _isFetchingMore = false);
       }
     }
   }
 
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+
+    final displayItems = _effectiveFilteredItems;
+    if (event.logicalKey == LogicalKeyboardKey.arrowDown) {
+      if (displayItems.isNotEmpty) {
+        setState(() {
+          _focusedIndex = (_focusedIndex + 1).clamp(0, displayItems.length - 1);
+        });
+        return KeyEventResult.handled;
+      }
+    } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
+      if (displayItems.isNotEmpty) {
+        setState(() {
+          _focusedIndex = (_focusedIndex - 1).clamp(0, displayItems.length - 1);
+        });
+        return KeyEventResult.handled;
+      }
+    } else if (event.logicalKey == LogicalKeyboardKey.enter) {
+      if (_focusedIndex >= 0 && _focusedIndex < displayItems.length) {
+        widget.onItemTap(displayItems[_focusedIndex]);
+        return KeyEventResult.handled;
+      }
+    } else if (event.logicalKey == LogicalKeyboardKey.escape) {
+      widget.controller.close();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
   List<T> get _effectiveFilteredItems {
+    if (widget.isRemoteSearch) {
+      return widget.items;
+    }
+
     final query = widget.controller.searchQuery;
     final searchConfig = widget.config.search;
 
@@ -156,8 +209,13 @@ class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
     final bool isMulti = widget.config.selection.isMulti;
     final displayItems = _effectiveFilteredItems;
 
+    final bool effectiveIsLoadingInitial = widget.isLoadingInitial ||
+        widget.controller.isLoadingInitial ||
+        (widget.isLoading && widget.items.isEmpty);
+    final String? effectiveError = widget.error ?? widget.controller.error;
+
     Widget body;
-    if (widget.isLoading && widget.items.isEmpty) {
+    if (effectiveIsLoadingInitial && widget.items.isEmpty) {
       body = widget.loadingBuilder?.call(context) ??
           Padding(
             padding: const EdgeInsets.all(24.0),
@@ -172,32 +230,47 @@ class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
               ),
             ),
           );
-    } else if (widget.error != null && widget.error!.isNotEmpty) {
-      body = widget.errorBuilder?.call(context, widget.error!) ??
+    } else if (effectiveError != null && effectiveError.isNotEmpty && widget.items.isEmpty) {
+      body = widget.errorBuilder?.call(context, effectiveError) ??
           Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.error_outline_rounded,
-                    size: 36,
-                    color: theme.colorScheme.error,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    widget.error!,
-                    style: theme.textTheme.bodyMedium?.copyWith(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.error_outline_rounded,
+                      size: 36,
                       color: theme.colorScheme.error,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
+                    const SizedBox(height: 8),
+                    Text(
+                      effectiveError,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.error,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton.tonalIcon(
+                      onPressed: () {
+                        if (widget.onRetry != null) {
+                          widget.onRetry!();
+                        } else {
+                          widget.controller.retry();
+                        }
+                      },
+                      icon: const Icon(Icons.refresh_rounded, size: 18),
+                      label: const Text('Retry'),
+                    ),
+                  ],
+                ),
               ),
             ),
           );
     } else if (displayItems.isEmpty &&
+        !effectiveIsLoadingInitial &&
         (widget.groupedItems == null || widget.groupedItems!.isEmpty) &&
         (widget.recentPopularItems == null || widget.recentPopularItems!.isEmpty)) {
       final bool showCreateOption = widget.config.createOption.enabled &&
@@ -208,36 +281,38 @@ class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
         mainAxisSize: MainAxisSize.min,
         children: [
           if (showCreateOption) _buildCreateOptionTile(context, widget.controller.searchQuery),
-          Expanded(
+          Flexible(
             child: widget.emptyBuilder?.call(context) ??
                 Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.find_in_page_outlined,
-                          size: 44,
-                          color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'No items found',
-                          style: theme.textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: theme.colorScheme.onSurface,
+                  child: SingleChildScrollView(
+                    child: Padding(
+                      padding: const EdgeInsets.all(12.0),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.find_in_page_outlined,
+                            size: 36,
+                            color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                           ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Try a different search term or clear filters.',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
+                          const SizedBox(height: 8),
+                          Text(
+                            'No items found',
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w600,
+                              color: theme.colorScheme.onSurface,
+                            ),
                           ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
+                          const SizedBox(height: 4),
+                          Text(
+                            'Try a different search term or clear filters.',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -264,87 +339,91 @@ class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
             ],
     );
 
-    return Material(
-      color: Colors.transparent,
-      child: Container(
-        constraints: BoxConstraints(
-          maxHeight: widget.config.popup.maxHeight,
-          maxWidth: widget.config.popup.width ?? double.infinity,
-        ),
-        decoration: containerDecoration,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (widget.isMobileModal) ...[
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      widget.config.popup.mobileTitle ?? 'Select Option',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.bold,
+    return Focus(
+      focusNode: _focusNode,
+      onKeyEvent: _handleKeyEvent,
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: widget.config.popup.maxHeight,
+            maxWidth: widget.config.popup.width ?? double.infinity,
+          ),
+          decoration: containerDecoration,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (widget.isMobileModal) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        widget.config.popup.mobileTitle ?? 'Select Option',
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close_rounded),
-                      onPressed: widget.onCloseModal ?? () => widget.controller.close(),
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1),
-            ],
-            if (widget.config.filter.enabled && widget.config.filter.builder != null) ...[
-              widget.config.filter.builder!(context, widget.controller),
-            ],
-            if (widget.config.search.enabled) ...[
-              SmartDropdownSearchField(
-                config: widget.config.search,
-                onChanged: widget.onSearchChanged,
-                onClear: widget.onClearSearch,
-              ),
-            ],
-            if (isMulti &&
-                (widget.config.selection.showSelectAll ||
-                    widget.config.selection.showClearAll)) ...[
-              SmartDropdownMultiSelectHeader(
-                config: widget.config.selection,
-                allSelected: widget.items.isNotEmpty &&
-                    widget.selectedItems.length >= widget.items.length,
-                someSelected: widget.selectedItems.isNotEmpty &&
-                    widget.selectedItems.length < widget.items.length,
-                onToggleSelectAll: widget.onToggleSelectAll,
-                onClearAll: widget.onClearAll,
-              ),
-            ],
-            Expanded(child: body),
-            if (isMulti && widget.config.selection.showConfirmBar) ...[
-              const Divider(height: 1),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    TextButton(
-                      onPressed: () => widget.controller.close(),
-                      child: Text(widget.config.selection.cancelText),
-                    ),
-                    const SizedBox(width: 8),
-                    FilledButton(
-                      onPressed: () => widget.controller.close(),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: effectivePrimary,
+                      IconButton(
+                        icon: const Icon(Icons.close_rounded),
+                        onPressed: widget.onCloseModal ?? () => widget.controller.close(),
                       ),
-                      child: Text(widget.config.selection.confirmText),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+                const Divider(height: 1),
+              ],
+              if (widget.config.filter.enabled && widget.config.filter.builder != null) ...[
+                widget.config.filter.builder!(context, widget.controller),
+              ],
+              if (widget.config.search.enabled) ...[
+                SmartDropdownSearchField(
+                  config: widget.config.search,
+                  onChanged: widget.onSearchChanged,
+                  onClear: widget.onClearSearch,
+                ),
+              ],
+              if (isMulti &&
+                  (widget.config.selection.showSelectAll ||
+                      widget.config.selection.showClearAll)) ...[
+                SmartDropdownMultiSelectHeader(
+                  config: widget.config.selection,
+                  allSelected: widget.items.isNotEmpty &&
+                      widget.selectedItems.length >= widget.items.length,
+                  someSelected: widget.selectedItems.isNotEmpty &&
+                      widget.selectedItems.length < widget.items.length,
+                  onToggleSelectAll: widget.onToggleSelectAll,
+                  onClearAll: widget.onClearAll,
+                ),
+              ],
+              Flexible(child: body),
+              if (isMulti && widget.config.selection.showConfirmBar) ...[
+                const Divider(height: 1),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => widget.controller.close(),
+                        child: Text(widget.config.selection.cancelText),
+                      ),
+                      const SizedBox(width: 8),
+                      FilledButton(
+                        onPressed: () => widget.controller.close(),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: effectivePrimary,
+                        ),
+                        child: Text(widget.config.selection.confirmText),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -414,11 +493,13 @@ class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
                     ),
                   ),
                 ),
-              ...group.items.map((item) {
+              ...group.items.asMap().entries.map((entry) {
+                final item = entry.value;
                 final isSelected = widget.selectedItems.contains(item);
                 final itemState = SmartDropdownItemState(
                   index: widget.items.indexOf(item),
                   isSelected: isSelected,
+                  isFocused: widget.items.indexOf(item) == _focusedIndex,
                   searchQuery: widget.controller.searchQuery,
                 );
                 return SmartDropdownItemTile<T>(
@@ -469,6 +550,7 @@ class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
           final itemState = SmartDropdownItemState(
             index: index,
             isSelected: isSelected,
+            isFocused: index == _focusedIndex,
             searchQuery: widget.controller.searchQuery,
           );
 
@@ -524,9 +606,18 @@ class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
         widget.controller.searchQuery.isNotEmpty &&
         widget.onCreateOption != null;
 
+    final String? effectivePaginationError =
+        widget.paginationError ?? widget.controller.paginationError;
+    final bool isActuallyLoadingMore = widget.isLoadingMore || widget.controller.isLoadingMore;
+
+    final bool showPaginationFooter = widget.config.pagination.enabled &&
+        (isActuallyLoadingMore ||
+            (effectivePaginationError != null && effectivePaginationError.isNotEmpty) ||
+            (!widget.controller.hasMore && widget.config.pagination.noMoreItemsBuilder != null));
+
     final int totalCount = displayItems.length +
         (showCreateOption ? 1 : 0) +
-        (widget.config.pagination.enabled ? 1 : 0);
+        (showPaginationFooter ? 1 : 0);
 
     return ListView.builder(
       controller: _scrollController,
@@ -539,31 +630,81 @@ class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
 
         final int itemIndex = showCreateOption ? index - 1 : index;
 
-        if (itemIndex == displayItems.length && widget.config.pagination.enabled) {
-          if (widget.config.pagination.loadingFooterBuilder != null) {
-            return widget.config.pagination.loadingFooterBuilder!(context);
-          }
-          return Container(
-            padding: const EdgeInsets.all(16.0),
-            alignment: Alignment.center,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Loading more...',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+        if (itemIndex == displayItems.length && showPaginationFooter) {
+          if (isActuallyLoadingMore) {
+            if (widget.config.pagination.loadingFooterBuilder != null) {
+              return widget.config.pagination.loadingFooterBuilder!(context);
+            }
+            return Container(
+              padding: const EdgeInsets.all(16.0),
+              alignment: Alignment.center,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
                   ),
-                ),
-              ],
-            ),
-          );
+                  const SizedBox(width: 12),
+                  Text(
+                    'Loading more...',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          } else if (effectivePaginationError != null && effectivePaginationError.isNotEmpty) {
+            if (widget.config.pagination.errorFooterBuilder != null) {
+              return widget.config.pagination.errorFooterBuilder!(
+                context,
+                effectivePaginationError,
+                () {
+                  if (widget.onRetryPagination != null) {
+                    widget.onRetryPagination!();
+                  } else {
+                    widget.controller.retryPagination();
+                  }
+                },
+              );
+            }
+            return Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error_outline_rounded, size: 18, color: theme.colorScheme.error),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(
+                      effectivePaginationError,
+                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.error),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: () {
+                      if (widget.onRetryPagination != null) {
+                        widget.onRetryPagination!();
+                      } else {
+                        widget.controller.retryPagination();
+                      }
+                    },
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            );
+          } else if (!widget.controller.hasMore) {
+            if (widget.config.pagination.noMoreItemsBuilder != null) {
+              return widget.config.pagination.noMoreItemsBuilder!(context);
+            }
+          }
+          return const SizedBox.shrink();
         }
 
         final item = displayItems[itemIndex];
@@ -571,6 +712,7 @@ class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
         final itemState = SmartDropdownItemState(
           index: itemIndex,
           isSelected: isSelected,
+          isFocused: itemIndex == _focusedIndex,
           searchQuery: widget.controller.searchQuery,
         );
 

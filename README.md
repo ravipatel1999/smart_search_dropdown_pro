@@ -387,83 +387,98 @@ SmartSearchDropdown<Facility>(
 
 ---
 
-## 🌐 API & Remote Search
+## 🛡️ Remote Search & Async Safety
 
-`SmartSearchDropdown` supports asynchronous data sources and backend API search queries out of the box using the `asyncSearch` callback.
+Building production-grade remote search dropdowns requires handling complex asynchronous edge cases: network latency inversions, fast keystrokes, out-of-order responses, mid-pagination query changes, and component teardown.
 
-This makes it ideal for real-world application use cases such as:
-- Hospital search
-- Facility search
-- Doctor / provider search
-- Patient search
-- Department search
-- City / country search
-- Remote autocomplete inputs
-- Server-side search queries
-- API-powered dropdowns
-- Asynchronous search operations
+`smart_search_dropdown_pro` includes a robust query generation architecture to guarantee UI and state consistency.
 
-### Remote API Autocomplete Example
+### 1. Monotonically Increasing Request Generation (`_searchGeneration`)
+Debouncing alone is **not** enough to prevent stale network responses. If a user searches `"A"`, then searches `"AB"`, request `AB` may return in 100ms while slow request `A` returns in 600ms. Without generation protection, request `A` would overwrite `AB`'s fresh results.
 
-```dart
-SmartSearchDropdown<Facility>(
-  asyncSearch: (query) async {
-    // Perform server-side search request
-    final response = await http.get(
-      Uri.parse('https://api.example.com/facilities?search=$query'),
-    );
-    return parseFacilities(response.body);
-  },
-  search: const SmartDropdownSearchConfig(
-    hintText: 'Type to search remote facilities...',
-    debounceDuration: Duration(milliseconds: 300),
-  ),
-  itemLabelBuilder: (facility) => facility.name,
-  hintText: 'Search Facility',
-  onChanged: (facility) {
-    setState(() => selectedFacility = facility);
-  },
-)
-```
+With our request token mechanism:
+- Every search start, clear, refresh, or retry increments `_searchGeneration`.
+- When an API response completes, the dropdown checks:
+  ```dart
+  if (generation != _searchGeneration) {
+    // Stale response silently dropped - will NEVER mutate current UI
+    return;
+  }
+  ```
+- The latest active search query **always wins**, regardless of network completion order.
 
-When `asyncSearch` is provided, `SmartSearchDropdown` manages request debouncing (300ms default), triggers progress spinners, and displays error messages automatically if an exception occurs during the API call.
+### 2. Configurable Debounce & Query Normalization
+Prevent flooding backend servers with an API call for every keystroke:
+- **`debounceDuration`**: (Default `Duration(milliseconds: 300)`). Cancels and restarts timer on each keystroke.
+- **`trimQuery`**: (Default `true`). Trims leading/trailing whitespace to prevent redundant searches.
+- **`caseSensitive`**: (Default `false`). Avoids re-requesting the identical query if only casing changed.
+- **Immediate Invalidation on Clear**: When the user taps the clear button, all pending debounce timers and in-flight searches are invalidated immediately.
+
+### 3. Query-Aware Serialized Pagination
+Infinite scrolling often leads to race conditions when users scroll rapidly or change queries while a page is in-flight:
+- **Pagination Serialization**: Loading guards ensure that only one page request is active at any given moment. Rapid scroll events will never trigger multiple duplicate page 2 requests.
+- **Session-Bound Pagination**: When the search query changes from `"flutter"` to `"flutter package"`, pagination state resets completely (`currentPage = 1`, `hasMore = true`, errors cleared). An in-flight Page 2 response for `"flutter"` will **never** be appended to `"flutter package"`.
+- **Accurate Footers**: Loading spinners are shown *only* while actively loading the next page, never permanently remaining at the bottom when not loading or when all pages are exhausted.
+
+### 4. Granular Error Handling & Retry
+- **Initial Search Error**: Displays a clean error view with a **Retry** button that retries the active query without losing search context.
+- **Pagination Error**: When Page 2 fails, existing Page 1 results **remain visible**, and a dedicated pagination error footer appears with a **Retry** button to retry Page 2 only.
+- **Error Callbacks**: Optional `onSearchError` and `onPaginationError` callbacks for custom toast/snackbar notifications or telemetry.
+
+### 5. Deduplication & Item Identity
+If consecutive API pages return overlapping records, duplicate items are automatically filtered:
+- **`itemIdExtractor`**: Provide an extractor function (e.g. `(item) => item.id`) for stable entity identity.
+- **`preventDuplicates`**: (Default `true`). Automatically eliminates duplicate records across pages while preserving API result order.
+
+### 6. Empty Query Behavior
+Configure what happens when the search field is empty via `SearchEmptyQueryBehavior`:
+- `SearchEmptyQueryBehavior.showInitialItems` (default): Displays static `items` list if provided.
+- `SearchEmptyQueryBehavior.callRemoteApi`: Calls the remote API with `""` to fetch default/popular results.
+- `SearchEmptyQueryBehavior.clearResults`: Clears all dropdown results until a query is entered.
 
 ---
 
-## 📄 Infinite Scroll & API Pagination
-
-For applications dealing with large backend datasets, `SmartSearchDropdown` provides infinite scroll pagination using `SmartDropdownPaginationConfig`.
-
-The package manages the scroll trigger and load-more lifecycle, while your application's API repository determines the page number and record size returned per request.
-
-### Paginated Flow Overview
-
-1. **Initial Load**: Popup opens showing Page 1 (e.g. 10 records).
-2. **Scroll Trigger**: User scrolls near the bottom of the list.
-3. **Load More Callback**: `onLoadMore` is invoked with `page: 2`.
-4. **Appended Records**: The next 10 records are fetched and appended seamlessly to the list view.
-
-### Paginated API Example
+### 🚀 Production-Grade Remote Paginated Search Example
 
 ```dart
 SmartSearchDropdown<Facility>(
-  items: initialFacilitiesPage, // First 10 records
-  value: selectedFacility,
-  itemLabelBuilder: (facility) => facility.name,
+  itemLabelBuilder: (f) => f.name,
+  itemSubtitleBuilder: (f) => '${f.category} • ${f.location}',
+  itemIdExtractor: (f) => f.id, // Stable identity prevents duplicates across pages
+  
+  // 1. Paginated Remote Search Callback (receives query and 1-indexed page)
+  asyncPaginatedSearch: (query, page) async {
+    final response = await http.get(
+      Uri.parse('https://api.example.com/facilities?q=$query&page=$page&limit=20'),
+    );
+    return parseFacilities(response.body);
+  },
+
+  // 2. Search & Debounce Configuration
+  search: const SmartDropdownSearchConfig(
+    hintText: 'Search facilities via remote API...',
+    debounceDuration: Duration(milliseconds: 300),
+    trimQuery: true,
+    emptyQueryBehavior: SearchEmptyQueryBehavior.showInitialItems,
+  ),
+
+  // 3. Pagination Configuration
   pagination: SmartDropdownPaginationConfig(
     enabled: true,
-    pageSize: 10,
-    scrollThreshold: 200.0,
-    onLoadMore: (page) async {
-      // Fetch Page N from backend repository (e.g., page 2 -> next 10 records)
-      final List<Facility> nextPageItems = await apiRepository.getFacilities(
-        page: page,
-        pageSize: 10,
-      );
-      return nextPageItems;
-    },
+    pageSize: 20,
+    scrollThreshold: 250.0,
+    preventDuplicates: true,
   ),
-  hintText: 'Select Facility from large dataset',
+
+  // 4. Error Callbacks
+  onSearchError: (error) => ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text('Search failed: $error')),
+  ),
+  onPaginationError: (error) => ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text('Failed to load more facilities: $error')),
+  ),
+
+  hintText: 'Select Facility',
   onChanged: (facility) {
     setState(() => selectedFacility = facility);
   },

@@ -17,6 +17,9 @@ class SmartSearchDropdownFormField<T> extends FormField<dynamic> {
     super.enabled = true,
     ValueChanged<T?>? onChanged,
     ValueChanged<List<T>>? onMultiChanged,
+    Future<List<T>> Function(String query)? asyncSearch,
+    Future<List<T>> Function(String query, int page)? asyncPaginatedSearch,
+    dynamic Function(T item)? itemIdExtractor,
     String Function(T item)? itemLabelBuilder,
     String? Function(T item)? itemSubtitleBuilder,
     Widget? Function(T item)? itemIconBuilder,
@@ -45,6 +48,9 @@ class SmartSearchDropdownFormField<T> extends FormField<dynamic> {
                 state.didChange(vals);
                 onMultiChanged?.call(vals);
               },
+              asyncSearch: asyncSearch,
+              asyncPaginatedSearch: asyncPaginatedSearch,
+              itemIdExtractor: itemIdExtractor,
               itemLabelBuilder: itemLabelBuilder,
               itemSubtitleBuilder: itemSubtitleBuilder,
               itemIconBuilder: itemIconBuilder,

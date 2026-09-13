@@ -6,6 +6,12 @@ class SmartDropdownController<T> extends ChangeNotifier {
   bool _isOpen = false;
   String _searchQuery = '';
   bool _hasMore = true;
+  bool _isLoadingInitial = false;
+  bool _isLoadingMore = false;
+  String? _error;
+  String? _paginationError;
+  int _currentPage = 1;
+  int _searchGeneration = 0;
 
   VoidCallback? _onOpen;
   VoidCallback? _onClose;
@@ -15,6 +21,9 @@ class SmartDropdownController<T> extends ChangeNotifier {
   Function? _onSelectAll;
   VoidCallback? _onClearAll;
   Function? _onLoadMore;
+  VoidCallback? _onRetry;
+  VoidCallback? _onRetryPagination;
+  VoidCallback? _onRefresh;
 
   SmartDropdownController({List<T>? initialSelection}) {
     if (initialSelection != null) {
@@ -25,6 +34,13 @@ class SmartDropdownController<T> extends ChangeNotifier {
   bool get isOpen => _isOpen;
   String get searchQuery => _searchQuery;
   bool get hasMore => _hasMore;
+  bool get isLoadingInitial => _isLoadingInitial;
+  bool get isLoadingMore => _isLoadingMore;
+  bool get isLoading => _isLoadingInitial || _isLoadingMore;
+  String? get error => _error;
+  String? get paginationError => _paginationError;
+  int get currentPage => _currentPage;
+  int get searchGeneration => _searchGeneration;
   T? get selectedItem => _selectedItems.isNotEmpty ? _selectedItems.first : null;
   List<T> get selectedItems => List.unmodifiable(_selectedItems);
 
@@ -37,6 +53,9 @@ class SmartDropdownController<T> extends ChangeNotifier {
     Function? onSelectAll,
     VoidCallback? onClearAll,
     Function? onLoadMore,
+    VoidCallback? onRetry,
+    VoidCallback? onRetryPagination,
+    VoidCallback? onRefresh,
   }) {
     _onOpen = onOpen;
     _onClose = onClose;
@@ -46,6 +65,9 @@ class SmartDropdownController<T> extends ChangeNotifier {
     _onSelectAll = onSelectAll;
     _onClearAll = onClearAll;
     _onLoadMore = onLoadMore;
+    _onRetry = onRetry;
+    _onRetryPagination = onRetryPagination;
+    _onRefresh = onRefresh;
   }
 
   void detachCallbacks() {
@@ -57,6 +79,9 @@ class SmartDropdownController<T> extends ChangeNotifier {
     _onSelectAll = null;
     _onClearAll = null;
     _onLoadMore = null;
+    _onRetry = null;
+    _onRetryPagination = null;
+    _onRefresh = null;
   }
 
   void open() {
@@ -126,8 +151,13 @@ class SmartDropdownController<T> extends ChangeNotifier {
     List<T>? selectedItems,
     String? searchQuery,
     bool? isLoading,
+    bool? isLoadingInitial,
+    bool? isLoadingMore,
     String? error,
+    String? paginationError,
     bool? hasMore,
+    int? currentPage,
+    int? searchGeneration,
     bool? isOpen,
   }) {
     if (isOpen != null) {
@@ -140,8 +170,30 @@ class SmartDropdownController<T> extends ChangeNotifier {
     if (searchQuery != null) {
       _searchQuery = searchQuery;
     }
+    if (isLoadingInitial != null) {
+      _isLoadingInitial = isLoadingInitial;
+    } else if (isLoading != null && isLoadingMore == null) {
+      _isLoadingInitial = isLoading;
+    }
+    if (isLoadingMore != null) {
+      _isLoadingMore = isLoadingMore;
+    }
+    if (error != null) {
+      _error = error.isEmpty ? null : error;
+    } else if (error == null && isLoading == true) {
+      _error = null;
+    }
+    if (paginationError != null) {
+      _paginationError = paginationError.isEmpty ? null : paginationError;
+    }
     if (hasMore != null) {
       _hasMore = hasMore;
+    }
+    if (currentPage != null) {
+      _currentPage = currentPage;
+    }
+    if (searchGeneration != null) {
+      _searchGeneration = searchGeneration;
     }
     notifyListeners();
   }
@@ -150,5 +202,17 @@ class SmartDropdownController<T> extends ChangeNotifier {
     if (_onLoadMore != null) {
       await _onLoadMore!.call();
     }
+  }
+
+  Future<void> retry() async {
+    _onRetry?.call();
+  }
+
+  Future<void> retryPagination() async {
+    _onRetryPagination?.call();
+  }
+
+  Future<void> refresh() async {
+    _onRefresh?.call();
   }
 }

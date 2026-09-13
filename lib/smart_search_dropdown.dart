@@ -22,6 +22,7 @@ export 'src/config/smart_dropdown_recent_config.dart';
 export 'src/enums/selection_mode.dart';
 export 'src/enums/dropdown_presentation.dart';
 export 'src/enums/search_mode.dart';
+export 'src/enums/search_empty_query_behavior.dart';
 
 // Theme & Tokens
 export 'src/theme/smart_dropdown_theme.dart';

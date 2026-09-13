@@ -10,6 +10,7 @@ import '../config/smart_dropdown_search_config.dart';
 import '../config/smart_dropdown_selection_config.dart';
 import '../controllers/smart_dropdown_controller.dart';
 import '../enums/dropdown_presentation.dart';
+import '../enums/search_empty_query_behavior.dart';
 import '../enums/selection_mode.dart';
 import '../models/dropdown_group.dart';
 import '../models/dropdown_item_state.dart';
@@ -38,6 +39,18 @@ class SmartSearchDropdown<T> extends StatefulWidget {
 
   /// Async search callback for remote API queries.
   final Future<List<T>> Function(String query)? asyncSearch;
+
+  /// Async paginated search callback receiving active query and 1-indexed page.
+  final Future<List<T>> Function(String query, int page)? asyncPaginatedSearch;
+
+  /// Stable item ID extractor for deduplicating items across pages and selections.
+  final dynamic Function(T item)? itemIdExtractor;
+
+  /// Callback fired when initial search encounters an error.
+  final ValueChanged<String>? onSearchError;
+
+  /// Callback fired when pagination loading encounters an error.
+  final ValueChanged<String>? onPaginationError;
 
   /// Label builder extracting string label from item [T].
   final String Function(T item)? itemLabelBuilder;
@@ -128,6 +141,10 @@ class SmartSearchDropdown<T> extends StatefulWidget {
     this.onChanged,
     this.onMultiChanged,
     this.asyncSearch,
+    this.asyncPaginatedSearch,
+    this.itemIdExtractor,
+    this.onSearchError,
+    this.onPaginationError,
     this.itemLabelBuilder,
     this.itemSubtitleBuilder,
     this.itemIconBuilder,
@@ -164,6 +181,10 @@ class SmartSearchDropdown<T> extends StatefulWidget {
     List<T>? selectedItems,
     required ValueChanged<List<T>> onMultiChanged,
     Future<List<T>> Function(String query)? asyncSearch,
+    Future<List<T>> Function(String query, int page)? asyncPaginatedSearch,
+    dynamic Function(T item)? itemIdExtractor,
+    ValueChanged<String>? onSearchError,
+    ValueChanged<String>? onPaginationError,
     String Function(T item)? itemLabelBuilder,
     String? Function(T item)? itemSubtitleBuilder,
     Widget? Function(T item)? itemIconBuilder,
@@ -196,6 +217,10 @@ class SmartSearchDropdown<T> extends StatefulWidget {
       selectedItems: selectedItems,
       onMultiChanged: onMultiChanged,
       asyncSearch: asyncSearch,
+      asyncPaginatedSearch: asyncPaginatedSearch,
+      itemIdExtractor: itemIdExtractor,
+      onSearchError: onSearchError,
+      onPaginationError: onPaginationError,
       itemLabelBuilder: itemLabelBuilder,
       itemSubtitleBuilder: itemSubtitleBuilder,
       itemIconBuilder: itemIconBuilder,
@@ -234,6 +259,10 @@ class SmartSearchDropdown<T> extends StatefulWidget {
     T? value,
     required ValueChanged<T?> onChanged,
     Future<List<T>> Function(String query)? asyncSearch,
+    Future<List<T>> Function(String query, int page)? asyncPaginatedSearch,
+    dynamic Function(T item)? itemIdExtractor,
+    ValueChanged<String>? onSearchError,
+    ValueChanged<String>? onPaginationError,
     String Function(T item)? itemLabelBuilder,
     String? Function(T item)? itemSubtitleBuilder,
     Widget? Function(T item)? itemIconBuilder,
@@ -263,6 +292,10 @@ class SmartSearchDropdown<T> extends StatefulWidget {
       value: value,
       onChanged: onChanged,
       asyncSearch: asyncSearch,
+      asyncPaginatedSearch: asyncPaginatedSearch,
+      itemIdExtractor: itemIdExtractor,
+      onSearchError: onSearchError,
+      onPaginationError: onPaginationError,
       itemLabelBuilder: itemLabelBuilder,
       itemSubtitleBuilder: itemSubtitleBuilder,
       itemIconBuilder: itemIconBuilder,
@@ -296,6 +329,8 @@ class SmartSearchDropdown<T> extends StatefulWidget {
 class _SmartSearchDropdownState<T> extends State<SmartSearchDropdown<T>> {
   final GlobalKey _triggerKey = GlobalKey();
   OverlayEntry? _overlayEntry;
+  NavigatorState? _modalNavigator;
+  bool _isModalOpen = false;
 
   late SmartDropdownController<T> _controller;
   bool _isInternalController = false;
@@ -303,10 +338,19 @@ class _SmartSearchDropdownState<T> extends State<SmartSearchDropdown<T>> {
   List<T> _currentItems = [];
   List<T> _selectedItems = [];
 
-  bool _isLoading = false;
+  bool _isLoadingInitial = false;
+  bool _isLoadingMore = false;
   String? _error;
+  String? _paginationError;
   Timer? _debounceTimer;
   int _currentPage = 1;
+  bool _hasMore = true;
+
+  /// Monotonically increasing generation counter to protect against async race conditions.
+  int _searchGeneration = 0;
+
+  /// Tracks the last executed query comparison string to prevent redundant network calls.
+  String? _lastExecutedNormalizedQuery;
 
   late SmartDropdownConfig<T> _effectiveConfig;
 
@@ -324,13 +368,15 @@ class _SmartSearchDropdownState<T> extends State<SmartSearchDropdown<T>> {
     super.didUpdateWidget(oldWidget);
     _initConfig();
     _syncSelectedItems();
-    if (widget.items != oldWidget.items && widget.asyncSearch == null) {
+    if (widget.items != oldWidget.items &&
+        widget.asyncSearch == null &&
+        widget.asyncPaginatedSearch == null) {
       _currentItems = List.from(widget.items ?? []);
     }
   }
 
   void _initConfig() {
-    final baseConfig = widget.config ?? const SmartDropdownConfig();
+    final baseConfig = widget.config ?? SmartDropdownConfig<T>();
     _effectiveConfig = baseConfig.copyWith(
       search: widget.search ?? baseConfig.search,
       selection: widget.selection ?? baseConfig.selection,
@@ -366,6 +412,9 @@ class _SmartSearchDropdownState<T> extends State<SmartSearchDropdown<T>> {
       onSelectAll: _handleSelectAll,
       onClearAll: _handleClearAll,
       onLoadMore: _handleLoadMore,
+      onRetry: _retrySearch,
+      onRetryPagination: _retryPagination,
+      onRefresh: _refresh,
     );
   }
 
@@ -383,11 +432,14 @@ class _SmartSearchDropdownState<T> extends State<SmartSearchDropdown<T>> {
     _controller.setSelection(_selectedItems);
   }
 
-  void _loadInitialItems() async {
+  void _loadInitialItems() {
     if (widget.items != null) {
       _currentItems = List.from(widget.items!);
-    } else if (widget.asyncSearch != null) {
-      _fetchAsyncQuery('');
+    } else if (widget.asyncPaginatedSearch != null || widget.asyncSearch != null) {
+      if (_effectiveConfig.search.emptyQueryBehavior ==
+          SearchEmptyQueryBehavior.callRemoteApi) {
+        _fetchAsyncQuery('');
+      }
     }
   }
 
@@ -398,11 +450,26 @@ class _SmartSearchDropdownState<T> extends State<SmartSearchDropdown<T>> {
     return item.toString();
   }
 
+  String _normalizeQuery(String query) {
+    String q = query;
+    if (_effectiveConfig.search.trimQuery) {
+      q = q.trim();
+    }
+    return q;
+  }
+
+  String _comparableQuery(String query) {
+    final q = _normalizeQuery(query);
+    return _effectiveConfig.search.caseSensitive ? q : q.toLowerCase();
+  }
+
   List<T> get _filteredItems {
     final query = _controller.searchQuery;
     final searchConfig = _effectiveConfig.search;
 
-    if (widget.asyncSearch != null || query.length < searchConfig.minChars) {
+    if (widget.asyncSearch != null ||
+        widget.asyncPaginatedSearch != null ||
+        query.length < searchConfig.minChars) {
       return _currentItems;
     }
 
@@ -452,65 +519,339 @@ class _SmartSearchDropdownState<T> extends State<SmartSearchDropdown<T>> {
     return list.isNotEmpty ? list : null;
   }
 
-  void _onSearchChanged(String query) {
+  void _onSearchChanged(String rawQuery) {
     _debounceTimer?.cancel();
-    _controller.setSearchQuery(query);
+    _controller.setSearchQuery(rawQuery);
 
-    if (widget.asyncSearch != null) {
-      _debounceTimer = Timer(_effectiveConfig.search.debounceDuration, () {
-        _fetchAsyncQuery(query);
-      });
-    } else {
+    final bool isRemote =
+        widget.asyncSearch != null || widget.asyncPaginatedSearch != null;
+
+    if (!isRemote) {
       if (mounted) setState(() {});
       _updateOverlayState();
+      return;
+    }
+
+    final normalized = _normalizeQuery(rawQuery);
+    final comparable = _comparableQuery(rawQuery);
+
+    // Handle empty query according to configuration
+    if (normalized.isEmpty) {
+      _searchGeneration++;
+      _lastExecutedNormalizedQuery = comparable;
+
+      switch (_effectiveConfig.search.emptyQueryBehavior) {
+        case SearchEmptyQueryBehavior.showInitialItems:
+          setState(() {
+            _currentItems = widget.items != null ? List.from(widget.items!) : [];
+            _isLoadingInitial = false;
+            _isLoadingMore = false;
+            _error = null;
+            _paginationError = null;
+            _currentPage = 1;
+            _hasMore = true;
+          });
+          _controller.updateState(
+            items: _currentItems,
+            isLoadingInitial: false,
+            isLoadingMore: false,
+            error: null,
+            paginationError: null,
+            currentPage: 1,
+            hasMore: true,
+            searchGeneration: _searchGeneration,
+          );
+          _updateOverlayState();
+          return;
+
+        case SearchEmptyQueryBehavior.clearResults:
+          setState(() {
+            _currentItems = [];
+            _isLoadingInitial = false;
+            _isLoadingMore = false;
+            _error = null;
+            _paginationError = null;
+            _currentPage = 1;
+            _hasMore = true;
+          });
+          _controller.updateState(
+            items: _currentItems,
+            isLoadingInitial: false,
+            isLoadingMore: false,
+            error: null,
+            paginationError: null,
+            currentPage: 1,
+            hasMore: true,
+            searchGeneration: _searchGeneration,
+          );
+          _updateOverlayState();
+          return;
+
+        case SearchEmptyQueryBehavior.callRemoteApi:
+          break;
+      }
+    }
+
+    if (normalized.length < _effectiveConfig.search.minChars && normalized.isNotEmpty) {
+      _searchGeneration++;
+      return;
+    }
+
+    // Prevent duplicate request if unchanged and not in an error state
+    if (comparable == _lastExecutedNormalizedQuery && _error == null) {
+      return;
+    }
+
+    final duration = _effectiveConfig.search.debounceDuration;
+    if (duration == Duration.zero) {
+      _fetchAsyncQuery(normalized);
+    } else {
+      _debounceTimer = Timer(duration, () {
+        _fetchAsyncQuery(normalized);
+      });
     }
   }
 
   void _fetchAsyncQuery(String query) async {
+    final normalized = _normalizeQuery(query);
+    _lastExecutedNormalizedQuery = _comparableQuery(query);
+
+    _searchGeneration++;
+    final int generation = _searchGeneration;
+
+    if (_effectiveConfig.search.logDebug) {
+      debugPrint('[SmartDropdown] SEARCH START query="$normalized" generation=$generation');
+    }
+
     setState(() {
-      _isLoading = true;
+      _isLoadingInitial = true;
+      _isLoadingMore = false;
       _error = null;
+      _paginationError = null;
+      _currentPage = 1;
+      _hasMore = true;
     });
-    _controller.updateState(isLoading: true, error: null);
+    _controller.updateState(
+      isLoadingInitial: true,
+      isLoadingMore: false,
+      error: null,
+      paginationError: null,
+      currentPage: 1,
+      hasMore: true,
+      searchGeneration: generation,
+    );
     _updateOverlayState();
 
     try {
-      final results = await widget.asyncSearch!(query);
-      if (mounted) {
-        setState(() {
-          _currentItems = results;
-          _isLoading = false;
-        });
-        _controller.updateState(isLoading: false);
-        _updateOverlayState();
+      List<T> results;
+      if (widget.asyncPaginatedSearch != null) {
+        results = await widget.asyncPaginatedSearch!(normalized, 1);
+      } else if (widget.asyncSearch != null) {
+        results = await widget.asyncSearch!(normalized);
+      } else {
+        results = [];
+      }
+
+      if (!mounted || generation != _searchGeneration) {
+        if (_effectiveConfig.search.logDebug) {
+          debugPrint(
+              '[SmartDropdown] STALE RESPONSE IGNORED query="$normalized" generation=$generation currentGeneration=$_searchGeneration');
+        }
+        return;
+      }
+
+      final bool hasMorePages = widget.asyncPaginatedSearch != null
+          ? results.length >= _effectiveConfig.pagination.pageSize
+          : (_effectiveConfig.pagination.enabled
+              ? results.length >= _effectiveConfig.pagination.pageSize
+              : false);
+
+      setState(() {
+        _currentItems = results;
+        _isLoadingInitial = false;
+        _hasMore = hasMorePages;
+      });
+      _controller.updateState(
+        items: _currentItems,
+        isLoadingInitial: false,
+        hasMore: hasMorePages,
+      );
+      _updateOverlayState();
+
+      if (_effectiveConfig.search.logDebug) {
+        debugPrint(
+            '[SmartDropdown] SEARCH SUCCESS query="$normalized" generation=$generation count=${results.length}');
       }
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _error = e.toString();
-          _isLoading = false;
-        });
-        _controller.updateState(isLoading: false, error: _error);
-        _updateOverlayState();
+      if (!mounted || generation != _searchGeneration) {
+        if (_effectiveConfig.search.logDebug) {
+          debugPrint(
+              '[SmartDropdown] STALE ERROR IGNORED query="$normalized" generation=$generation currentGeneration=$_searchGeneration');
+        }
+        return;
+      }
+
+      final errorMsg = e.toString();
+      setState(() {
+        _error = errorMsg;
+        _isLoadingInitial = false;
+      });
+      _controller.updateState(
+        isLoadingInitial: false,
+        error: errorMsg,
+      );
+      _updateOverlayState();
+      widget.onSearchError?.call(errorMsg);
+
+      if (_effectiveConfig.search.logDebug) {
+        debugPrint(
+            '[SmartDropdown] SEARCH ERROR query="$normalized" generation=$generation error=$errorMsg');
       }
     }
   }
 
   Future<void> _handleLoadMore() async {
-    if (widget.asyncSearch == null && _effectiveConfig.pagination.onLoadMore == null) return;
+    if (_isLoadingMore || !_hasMore || _isLoadingInitial) return;
+    if (widget.asyncPaginatedSearch == null &&
+        _effectiveConfig.pagination.onLoadMoreWithQuery == null &&
+        _effectiveConfig.pagination.onLoadMore == null) {
+      return;
+    }
+
+    final int generation = _searchGeneration;
+    final int targetPage = _currentPage + 1;
+    final String query = _normalizeQuery(_controller.searchQuery);
+
+    if (_effectiveConfig.search.logDebug) {
+      debugPrint(
+          '[SmartDropdown] PAGE REQUEST query="$query" page=$targetPage generation=$generation');
+    }
+
+    setState(() {
+      _isLoadingMore = true;
+      _paginationError = null;
+    });
+    _controller.updateState(
+      isLoadingMore: true,
+      paginationError: null,
+    );
+    _updateOverlayState();
+
     try {
-      _currentPage++;
-      final newItems = await _effectiveConfig.pagination.onLoadMore?.call(_currentPage);
-      if (newItems != null && newItems.isNotEmpty) {
-        setState(() {
-          _currentItems.addAll(newItems);
-        });
-        _updateOverlayState();
-      } else {
-        _controller.updateState(hasMore: false);
+      List<T>? newItems;
+      if (widget.asyncPaginatedSearch != null) {
+        newItems = await widget.asyncPaginatedSearch!(query, targetPage);
+      } else if (_effectiveConfig.pagination.onLoadMoreWithQuery != null) {
+        newItems =
+            await _effectiveConfig.pagination.onLoadMoreWithQuery!(targetPage, query);
+      } else if (_effectiveConfig.pagination.onLoadMore != null) {
+        newItems = await _effectiveConfig.pagination.onLoadMore!(targetPage);
       }
-    } catch (_) {
-      _controller.updateState(hasMore: false);
+
+      if (!mounted || generation != _searchGeneration) {
+        if (_effectiveConfig.search.logDebug) {
+          debugPrint(
+              '[SmartDropdown] PAGE RESPONSE IGNORED page=$targetPage generation=$generation currentGeneration=$_searchGeneration');
+        }
+        return;
+      }
+
+      if (newItems != null && newItems.isNotEmpty) {
+        final merged = _mergeItems(_currentItems, newItems);
+        final bool hasMorePages = newItems.length >= _effectiveConfig.pagination.pageSize;
+
+        setState(() {
+          _currentItems = merged;
+          _currentPage = targetPage;
+          _hasMore = hasMorePages;
+          _isLoadingMore = false;
+        });
+        _controller.updateState(
+          items: _currentItems,
+          isLoadingMore: false,
+          currentPage: targetPage,
+          hasMore: hasMorePages,
+        );
+        _updateOverlayState();
+
+        if (_effectiveConfig.search.logDebug) {
+          debugPrint(
+              '[SmartDropdown] PAGE SUCCESS page=$targetPage count=${newItems.length} total=${merged.length}');
+        }
+      } else {
+        setState(() {
+          _hasMore = false;
+          _isLoadingMore = false;
+        });
+        _controller.updateState(
+          isLoadingMore: false,
+          hasMore: false,
+        );
+        _updateOverlayState();
+      }
+    } catch (e) {
+      if (!mounted || generation != _searchGeneration) {
+        if (_effectiveConfig.search.logDebug) {
+          debugPrint(
+              '[SmartDropdown] PAGE ERROR IGNORED page=$targetPage generation=$generation currentGeneration=$_searchGeneration');
+        }
+        return;
+      }
+
+      final errorMsg = e.toString();
+      setState(() {
+        _paginationError = errorMsg;
+        _isLoadingMore = false;
+      });
+      _controller.updateState(
+        isLoadingMore: false,
+        paginationError: errorMsg,
+      );
+      _updateOverlayState();
+      widget.onPaginationError?.call(errorMsg);
+
+      if (_effectiveConfig.search.logDebug) {
+        debugPrint(
+            '[SmartDropdown] PAGE ERROR page=$targetPage generation=$generation error=$errorMsg');
+      }
+    }
+  }
+
+  void _retrySearch() {
+    final query = _controller.searchQuery;
+    _fetchAsyncQuery(query);
+  }
+
+  void _retryPagination() {
+    _handleLoadMore();
+  }
+
+  void _refresh() {
+    final query = _controller.searchQuery;
+    _fetchAsyncQuery(query);
+  }
+
+  List<T> _mergeItems(List<T> existing, List<T> incoming) {
+    if (!_effectiveConfig.pagination.preventDuplicates) {
+      return [...existing, ...incoming];
+    }
+
+    final extractor = widget.itemIdExtractor ?? _effectiveConfig.pagination.itemIdExtractor;
+    if (extractor != null) {
+      final seenKeys = existing.map(extractor).toSet();
+      final uniqueIncoming = <T>[];
+      for (final item in incoming) {
+        final key = extractor(item);
+        if (key == null || seenKeys.add(key)) {
+          uniqueIncoming.add(item);
+        }
+      }
+      return [...existing, ...uniqueIncoming];
+    } else {
+      final existingSet = existing.toSet();
+      final uniqueIncoming =
+          incoming.where((item) => !existingSet.contains(item)).toList();
+      return [...existing, ...uniqueIncoming];
     }
   }
 
@@ -550,7 +891,8 @@ class _SmartSearchDropdownState<T> extends State<SmartSearchDropdown<T>> {
   }
 
   void _handleSelectAll() {
-    final available = _filteredItems.where((i) => widget.isItemEnabled?.call(i) ?? true).toList();
+    final available =
+        _filteredItems.where((i) => widget.isItemEnabled?.call(i) ?? true).toList();
     if (_selectedItems.length >= available.length) {
       _handleClearAll();
     } else {
@@ -627,12 +969,84 @@ class _SmartSearchDropdownState<T> extends State<SmartSearchDropdown<T>> {
             left: posResult.offset.dx,
             top: posResult.offset.dy,
             width: posResult.width,
-            child: SmartDropdownPopup<T>(
-              config: _effectiveConfig.copyWith(
-                popup: _effectiveConfig.popup.copyWith(
-                  maxHeight: posResult.maxHeight,
+            child: AnimatedBuilder(
+              animation: _controller,
+              builder: (ctx, _) => SmartDropdownPopup<T>(
+                config: _effectiveConfig.copyWith(
+                  popup: _effectiveConfig.popup.copyWith(
+                    maxHeight: posResult.maxHeight,
+                  ),
                 ),
+                items: _filteredItems,
+                groupedItems: _groupedItems,
+                recentPopularItems: _recentPopularItems,
+                selectedItems: _selectedItems,
+                controller: _controller,
+                labelBuilder: _getItemLabel,
+                subtitleBuilder: widget.itemSubtitleBuilder,
+                iconBuilder: widget.itemIconBuilder,
+                avatarBuilder: widget.itemAvatarBuilder,
+                statusBuilder: widget.itemStatusBuilder,
+                trailingBuilder: widget.itemTrailingBuilder,
+                itemBuilder: widget.itemBuilder,
+                groupHeaderBuilder: widget.groupHeaderBuilder,
+                emptyBuilder: widget.emptyBuilder,
+                errorBuilder: widget.errorBuilder,
+                loadingBuilder: widget.loadingBuilder,
+                onItemTap: (item) {
+                  if (_selectedItems.contains(item)) {
+                    _handleDeselect(item);
+                  } else {
+                    _handleSelect(item);
+                  }
+                },
+                onSearchChanged: _onSearchChanged,
+                onClearSearch: () => _onSearchChanged(''),
+                onToggleSelectAll: _handleSelectAll,
+                onClearAll: _handleClearAll,
+                onCreateOption: (q) async {
+                  final created = await widget.onCreateOption?.call(q);
+                  if (created != null) {
+                    _handleSelect(created);
+                  }
+                },
+                isLoadingInitial: _isLoadingInitial,
+                isLoadingMore: _isLoadingMore,
+                error: _error,
+                paginationError: _paginationError,
+                onRetry: _retrySearch,
+                onRetryPagination: _retryPagination,
+                isRemoteSearch:
+                    widget.asyncSearch != null || widget.asyncPaginatedSearch != null,
               ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    Overlay.of(context).insert(_overlayEntry!);
+    setState(() {});
+    _controller.updateState(isOpen: true);
+  }
+
+  void _showBottomSheetModal() {
+    _controller.updateState(isOpen: true);
+    setState(() {});
+    _isModalOpen = true;
+    _modalNavigator = Navigator.of(context);
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return AnimatedBuilder(
+          animation: _controller,
+          builder: (ctx, _) => Padding(
+            padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+            child: SmartDropdownPopup<T>(
+              config: _effectiveConfig,
               items: _filteredItems,
               groupedItems: _groupedItems,
               recentPopularItems: _recentPopularItems,
@@ -666,76 +1080,23 @@ class _SmartSearchDropdownState<T> extends State<SmartSearchDropdown<T>> {
                   _handleSelect(created);
                 }
               },
-              isLoading: _isLoading,
+              isLoadingInitial: _isLoadingInitial,
+              isLoadingMore: _isLoadingMore,
               error: _error,
+              paginationError: _paginationError,
+              onRetry: _retrySearch,
+              onRetryPagination: _retryPagination,
+              isRemoteSearch:
+                  widget.asyncSearch != null || widget.asyncPaginatedSearch != null,
+              isMobileModal: true,
+              onCloseModal: () => Navigator.of(ctx).pop(),
             ),
-          ),
-        ],
-      ),
-    );
-
-    Overlay.of(context).insert(_overlayEntry!);
-    setState(() {});
-    _controller.updateState(isOpen: true);
-  }
-
-  void _showBottomSheetModal() {
-    _controller.updateState(isOpen: true);
-    setState(() {});
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-          child: SmartDropdownPopup<T>(
-            config: _effectiveConfig,
-            items: _filteredItems,
-            groupedItems: _groupedItems,
-            recentPopularItems: _recentPopularItems,
-            selectedItems: _selectedItems,
-            controller: _controller,
-            labelBuilder: _getItemLabel,
-            subtitleBuilder: widget.itemSubtitleBuilder,
-            iconBuilder: widget.itemIconBuilder,
-            avatarBuilder: widget.itemAvatarBuilder,
-            statusBuilder: widget.itemStatusBuilder,
-            trailingBuilder: widget.itemTrailingBuilder,
-            itemBuilder: widget.itemBuilder,
-            groupHeaderBuilder: widget.groupHeaderBuilder,
-            emptyBuilder: widget.emptyBuilder,
-            errorBuilder: widget.errorBuilder,
-            loadingBuilder: widget.loadingBuilder,
-            onItemTap: (item) {
-              if (_selectedItems.contains(item)) {
-                _handleDeselect(item);
-              } else {
-                _handleSelect(item);
-              }
-              if (!_effectiveConfig.selection.isMulti) {
-                Navigator.of(ctx).pop();
-              }
-            },
-            onSearchChanged: _onSearchChanged,
-            onClearSearch: () => _onSearchChanged(''),
-            onToggleSelectAll: _handleSelectAll,
-            onClearAll: _handleClearAll,
-            onCreateOption: (q) async {
-              final created = await widget.onCreateOption?.call(q);
-              if (created != null) {
-                _handleSelect(created);
-              }
-            },
-            isLoading: _isLoading,
-            error: _error,
-            isMobileModal: true,
-            onCloseModal: () => Navigator.of(ctx).pop(),
           ),
         );
       },
     ).then((_) {
+      _isModalOpen = false;
+      _modalNavigator = null;
       _controller.updateState(isOpen: false);
       if (mounted) setState(() {});
     });
@@ -744,60 +1105,71 @@ class _SmartSearchDropdownState<T> extends State<SmartSearchDropdown<T>> {
   void _showDialogModal() {
     _controller.updateState(isOpen: true);
     setState(() {});
+    _isModalOpen = true;
+    _modalNavigator = Navigator.of(context);
 
     showDialog(
       context: context,
       builder: (ctx) {
-        return Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: SmartDropdownPopup<T>(
-            config: _effectiveConfig,
-            items: _filteredItems,
-            groupedItems: _groupedItems,
-            recentPopularItems: _recentPopularItems,
-            selectedItems: _selectedItems,
-            controller: _controller,
-            labelBuilder: _getItemLabel,
-            subtitleBuilder: widget.itemSubtitleBuilder,
-            iconBuilder: widget.itemIconBuilder,
-            avatarBuilder: widget.itemAvatarBuilder,
-            statusBuilder: widget.itemStatusBuilder,
-            trailingBuilder: widget.itemTrailingBuilder,
-            itemBuilder: widget.itemBuilder,
-            groupHeaderBuilder: widget.groupHeaderBuilder,
-            emptyBuilder: widget.emptyBuilder,
-            errorBuilder: widget.errorBuilder,
-            loadingBuilder: widget.loadingBuilder,
-            onItemTap: (item) {
-              if (_selectedItems.contains(item)) {
-                _handleDeselect(item);
-              } else {
-                _handleSelect(item);
-              }
-              if (!_effectiveConfig.selection.isMulti) {
-                Navigator.of(ctx).pop();
-              }
-            },
-            onSearchChanged: _onSearchChanged,
-            onClearSearch: () => _onSearchChanged(''),
-            onToggleSelectAll: _handleSelectAll,
-            onClearAll: _handleClearAll,
-            onCreateOption: (q) async {
-              final created = await widget.onCreateOption?.call(q);
-              if (created != null) {
-                _handleSelect(created);
-              }
-            },
-            isLoading: _isLoading,
-            error: _error,
-            isMobileModal: true,
-            onCloseModal: () => Navigator.of(ctx).pop(),
+        return AnimatedBuilder(
+          animation: _controller,
+          builder: (ctx, _) => Dialog(
+            insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: SmartDropdownPopup<T>(
+              config: _effectiveConfig,
+              items: _filteredItems,
+              groupedItems: _groupedItems,
+              recentPopularItems: _recentPopularItems,
+              selectedItems: _selectedItems,
+              controller: _controller,
+              labelBuilder: _getItemLabel,
+              subtitleBuilder: widget.itemSubtitleBuilder,
+              iconBuilder: widget.itemIconBuilder,
+              avatarBuilder: widget.itemAvatarBuilder,
+              statusBuilder: widget.itemStatusBuilder,
+              trailingBuilder: widget.itemTrailingBuilder,
+              itemBuilder: widget.itemBuilder,
+              groupHeaderBuilder: widget.groupHeaderBuilder,
+              emptyBuilder: widget.emptyBuilder,
+              errorBuilder: widget.errorBuilder,
+              loadingBuilder: widget.loadingBuilder,
+              onItemTap: (item) {
+                if (_selectedItems.contains(item)) {
+                  _handleDeselect(item);
+                } else {
+                  _handleSelect(item);
+                }
+              },
+              onSearchChanged: _onSearchChanged,
+              onClearSearch: () => _onSearchChanged(''),
+              onToggleSelectAll: _handleSelectAll,
+              onClearAll: _handleClearAll,
+              onCreateOption: (q) async {
+                final created = await widget.onCreateOption?.call(q);
+                if (created != null) {
+                  _handleSelect(created);
+                }
+              },
+              isLoadingInitial: _isLoadingInitial,
+              isLoadingMore: _isLoadingMore,
+              error: _error,
+              paginationError: _paginationError,
+              onRetry: _retrySearch,
+              onRetryPagination: _retryPagination,
+              isRemoteSearch:
+                  widget.asyncSearch != null || widget.asyncPaginatedSearch != null,
+              isMobileModal: true,
+              onCloseModal: () => Navigator.of(ctx).pop(),
+            ),
           ),
         );
       },
     ).then((_) {
+      _isModalOpen = false;
+      _modalNavigator = null;
       _controller.updateState(isOpen: false);
       if (mounted) setState(() {});
     });
@@ -810,6 +1182,11 @@ class _SmartSearchDropdownState<T> extends State<SmartSearchDropdown<T>> {
   }
 
   void _hideOverlay() {
+    if (_isModalOpen && _modalNavigator != null && _modalNavigator!.mounted) {
+      _isModalOpen = false;
+      _modalNavigator!.pop();
+      _modalNavigator = null;
+    }
     if (_overlayEntry != null) {
       _overlayEntry!.remove();
       _overlayEntry = null;
@@ -820,8 +1197,20 @@ class _SmartSearchDropdownState<T> extends State<SmartSearchDropdown<T>> {
 
   @override
   void dispose() {
+    _searchGeneration++;
     _debounceTimer?.cancel();
-    _hideOverlay();
+    if (_isModalOpen && _modalNavigator != null && _modalNavigator!.mounted) {
+      final nav = _modalNavigator!;
+      _isModalOpen = false;
+      _modalNavigator = null;
+      Future.microtask(() {
+        if (nav.mounted) nav.pop();
+      });
+    }
+    if (_overlayEntry != null) {
+      _overlayEntry!.remove();
+      _overlayEntry = null;
+    }
     if (_isInternalController) {
       _controller.dispose();
     } else {
@@ -832,7 +1221,8 @@ class _SmartSearchDropdownState<T> extends State<SmartSearchDropdown<T>> {
 
   @override
   Widget build(BuildContext context) {
-    final T? singleSelection = _selectedItems.isNotEmpty ? _selectedItems.first : null;
+    final T? singleSelection =
+        _selectedItems.isNotEmpty ? _selectedItems.first : null;
 
     return SmartDropdownTrigger<T>(
       key: _triggerKey,

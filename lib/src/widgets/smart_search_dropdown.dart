@@ -19,6 +19,17 @@ import '../utilities/search_utils.dart';
 import 'smart_dropdown_popup.dart';
 import 'smart_dropdown_trigger.dart';
 
+/// Result model returned by paged loader functions.
+class DropdownPageResult<T> {
+  final List<T> items;
+  final bool hasMore;
+
+  DropdownPageResult({required this.items, required this.hasMore});
+}
+
+/// Signature for paged data loader callback.
+typedef DropdownLoader<T> = Future<DropdownPageResult<T>> Function(String query, int page);
+
 /// Modern, highly reusable, type-safe searchable dropdown system for Flutter.
 class SmartSearchDropdown<T> extends StatefulWidget {
   /// Master list of items.
@@ -120,6 +131,33 @@ class SmartSearchDropdown<T> extends StatefulWidget {
   /// Item-level enablement callback.
   final bool Function(T item)? isItemEnabled;
 
+  /// Top field label (e.g. "Facility Type *" where trailing '*' is rendered in red).
+  final String? labelText;
+
+  /// Leading icon inside the trigger box.
+  final Widget? prefixIcon;
+
+  /// Optional widget displayed on the right of the top label (e.g. '+' button).
+  final Widget? trailingLabelWidget;
+
+  /// Shortcut for popup search box placeholder.
+  final String? searchHint;
+
+  /// Whether to show the clear button when item is selected.
+  final bool? showClearButton;
+
+  /// Max height for the dropdown popup panel.
+  final double? maxPanelHeight;
+
+  /// Convenience paged loader function.
+  final Future<DropdownPageResult<T>> Function(String query, int page)? loader;
+
+  /// Shortcut for search debounce duration in milliseconds.
+  final int? debounceMs;
+
+  /// Shortcut for page size.
+  final int? pageSize;
+
   const SmartSearchDropdown({
     super.key,
     this.items,
@@ -155,6 +193,15 @@ class SmartSearchDropdown<T> extends StatefulWidget {
     this.enabled = true,
     this.errorText,
     this.isItemEnabled,
+    this.labelText,
+    this.prefixIcon,
+    this.trailingLabelWidget,
+    this.searchHint,
+    this.showClearButton,
+    this.maxPanelHeight,
+    this.loader,
+    this.debounceMs,
+    this.pageSize,
   });
 
   /// Convenient named constructor for multi-selection mode.
@@ -187,8 +234,16 @@ class SmartSearchDropdown<T> extends StatefulWidget {
     String? errorText,
     bool showSelectAll = true,
     bool showClearAll = true,
-    int? maxSelections,
-    int? minSelections,
+    SmartDropdownSelectionConfig? selection,
+    String? labelText,
+    Widget? prefixIcon,
+    Widget? trailingLabelWidget,
+    String? searchHint,
+    bool? showClearButton,
+    double? maxPanelHeight,
+    Future<DropdownPageResult<T>> Function(String query, int page)? loader,
+    int? debounceMs,
+    int? pageSize,
   }) {
     return SmartSearchDropdown<T>(
       key: key,
@@ -217,12 +272,19 @@ class SmartSearchDropdown<T> extends StatefulWidget {
       hintText: hintText,
       enabled: enabled,
       errorText: errorText,
-      selection: SmartDropdownSelectionConfig(
+      labelText: labelText,
+      prefixIcon: prefixIcon,
+      trailingLabelWidget: trailingLabelWidget,
+      searchHint: searchHint,
+      showClearButton: showClearButton,
+      maxPanelHeight: maxPanelHeight,
+      loader: loader,
+      debounceMs: debounceMs,
+      pageSize: pageSize,
+      selection: (selection ?? const SmartDropdownSelectionConfig()).copyWith(
         mode: SelectionMode.multiple,
-        showSelectAll: showSelectAll,
-        showClearAll: showClearAll,
-        maxSelections: maxSelections,
-        minSelections: minSelections,
+        showSelectAll: selection?.showSelectAll ?? showSelectAll,
+        showClearAll: selection?.showClearAll ?? showClearAll,
       ),
     );
   }
@@ -256,6 +318,15 @@ class SmartSearchDropdown<T> extends StatefulWidget {
     String hintText = 'Select Option',
     bool enabled = true,
     String? errorText,
+    String? labelText,
+    Widget? prefixIcon,
+    Widget? trailingLabelWidget,
+    String? searchHint,
+    bool? showClearButton,
+    double? maxPanelHeight,
+    Future<DropdownPageResult<T>> Function(String query, int page)? loader,
+    int? debounceMs,
+    int? pageSize,
   }) {
     return SmartSearchDropdown<T>(
       key: key,
@@ -283,6 +354,15 @@ class SmartSearchDropdown<T> extends StatefulWidget {
       hintText: hintText,
       enabled: enabled,
       errorText: errorText,
+      labelText: labelText,
+      prefixIcon: prefixIcon,
+      trailingLabelWidget: trailingLabelWidget,
+      searchHint: searchHint,
+      showClearButton: showClearButton,
+      maxPanelHeight: maxPanelHeight,
+      loader: loader,
+      debounceMs: debounceMs,
+      pageSize: pageSize,
       selection: const SmartDropdownSelectionConfig(
         mode: SelectionMode.single,
       ),
@@ -307,6 +387,7 @@ class _SmartSearchDropdownState<T> extends State<SmartSearchDropdown<T>> {
   String? _error;
   Timer? _debounceTimer;
   int _currentPage = 1;
+  int _searchGeneration = 0;
 
   late SmartDropdownConfig<T> _effectiveConfig;
 
@@ -330,13 +411,49 @@ class _SmartSearchDropdownState<T> extends State<SmartSearchDropdown<T>> {
   }
 
   void _initConfig() {
-    final baseConfig = widget.config ?? const SmartDropdownConfig();
+    final baseConfig = widget.config ?? SmartDropdownConfig<T>();
+
+    var searchConfig = widget.search ?? baseConfig.search;
+    if (widget.searchHint != null) {
+      searchConfig = searchConfig.copyWith(searchHintText: widget.searchHint!);
+    }
+    if (widget.debounceMs != null) {
+      searchConfig = searchConfig.copyWith(
+        debounceDuration: Duration(milliseconds: widget.debounceMs!),
+      );
+    }
+
+    var popupConfig = widget.popup ?? baseConfig.popup;
+    if (widget.maxPanelHeight != null) {
+      popupConfig = popupConfig.copyWith(maxHeight: widget.maxPanelHeight!);
+    }
+
+    var selectionConfig = widget.selection ?? baseConfig.selection;
+    if (widget.showClearButton != null) {
+      selectionConfig = selectionConfig.copyWith(showClearAll: widget.showClearButton!);
+    }
+
+    var paginationConfig = widget.pagination ?? baseConfig.pagination;
+    if (widget.pageSize != null) {
+      paginationConfig = paginationConfig.copyWith(pageSize: widget.pageSize!);
+    }
+    if (widget.loader != null && paginationConfig.onLoadMore == null) {
+      paginationConfig = paginationConfig.copyWith(
+        enabled: true,
+        onLoadMore: (page) async {
+          final res = await widget.loader!(_controller.searchQuery, page);
+          _controller.updateState(hasMore: res.hasMore);
+          return res.items;
+        },
+      );
+    }
+
     _effectiveConfig = baseConfig.copyWith(
-      search: widget.search ?? baseConfig.search,
-      selection: widget.selection ?? baseConfig.selection,
-      popup: widget.popup ?? baseConfig.popup,
+      search: searchConfig,
+      selection: selectionConfig,
+      popup: popupConfig,
       filter: widget.filters ?? baseConfig.filter,
-      pagination: widget.pagination ?? baseConfig.pagination,
+      pagination: paginationConfig,
       createOption: widget.createOption != null
           ? widget.createOption!
           : (widget.onCreateOption != null
@@ -386,8 +503,49 @@ class _SmartSearchDropdownState<T> extends State<SmartSearchDropdown<T>> {
   void _loadInitialItems() async {
     if (widget.items != null) {
       _currentItems = List.from(widget.items!);
+    } else if (widget.loader != null) {
+      _fetchLoaderQuery('', isInitial: true);
     } else if (widget.asyncSearch != null) {
-      _fetchAsyncQuery('');
+      _fetchAsyncQuery('', isInitial: true);
+    }
+  }
+
+  void _fetchLoaderQuery(String query, {bool isInitial = false}) async {
+    final int generation = ++_searchGeneration;
+    if (!isInitial && mounted) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+    } else {
+      _isLoading = true;
+      _error = null;
+    }
+    _controller.updateState(isLoading: true, error: null);
+    _updateOverlayState();
+
+    try {
+      _currentPage = 1;
+      final result = await widget.loader!(query, 1);
+      if (_searchGeneration != generation) return;
+      if (mounted) {
+        setState(() {
+          _currentItems = result.items;
+          _isLoading = false;
+        });
+        _controller.updateState(isLoading: false, hasMore: result.hasMore);
+        _updateOverlayState();
+      }
+    } catch (e) {
+      if (_searchGeneration != generation) return;
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+        _controller.updateState(isLoading: false, error: _error);
+        _updateOverlayState();
+      }
     }
   }
 
@@ -402,7 +560,7 @@ class _SmartSearchDropdownState<T> extends State<SmartSearchDropdown<T>> {
     final query = _controller.searchQuery;
     final searchConfig = _effectiveConfig.search;
 
-    if (widget.asyncSearch != null || query.length < searchConfig.minChars) {
+    if (widget.loader != null || widget.asyncSearch != null || query.length < searchConfig.minChars) {
       return _currentItems;
     }
 
@@ -455,8 +613,13 @@ class _SmartSearchDropdownState<T> extends State<SmartSearchDropdown<T>> {
   void _onSearchChanged(String query) {
     _debounceTimer?.cancel();
     _controller.setSearchQuery(query);
+    _effectiveConfig.search.onSearchChanged?.call(query);
 
-    if (widget.asyncSearch != null) {
+    if (widget.loader != null) {
+      _debounceTimer = Timer(_effectiveConfig.search.debounceDuration, () {
+        _fetchLoaderQuery(query);
+      });
+    } else if (widget.asyncSearch != null) {
       _debounceTimer = Timer(_effectiveConfig.search.debounceDuration, () {
         _fetchAsyncQuery(query);
       });
@@ -466,16 +629,23 @@ class _SmartSearchDropdownState<T> extends State<SmartSearchDropdown<T>> {
     }
   }
 
-  void _fetchAsyncQuery(String query) async {
-    setState(() {
+  void _fetchAsyncQuery(String query, {bool isInitial = false}) async {
+    final int generation = ++_searchGeneration;
+    if (!isInitial && mounted) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+    } else {
       _isLoading = true;
       _error = null;
-    });
+    }
     _controller.updateState(isLoading: true, error: null);
     _updateOverlayState();
 
     try {
       final results = await widget.asyncSearch!(query);
+      if (_searchGeneration != generation) return;
       if (mounted) {
         setState(() {
           _currentItems = results;
@@ -485,6 +655,7 @@ class _SmartSearchDropdownState<T> extends State<SmartSearchDropdown<T>> {
         _updateOverlayState();
       }
     } catch (e) {
+      if (_searchGeneration != generation) return;
       if (mounted) {
         setState(() {
           _error = e.toString();
@@ -847,6 +1018,10 @@ class _SmartSearchDropdownState<T> extends State<SmartSearchDropdown<T>> {
       iconBuilder: widget.itemIconBuilder,
       avatarBuilder: widget.itemAvatarBuilder,
       selectedItemBuilder: widget.selectedItemBuilder,
+      prefixIcon: widget.prefixIcon,
+      labelText: widget.labelText,
+      trailingLabelWidget: widget.trailingLabelWidget,
+      showClearButton: widget.showClearButton ?? true,
       onTap: _toggleOverlay,
       onClear: _handleClearAll,
       onRemoveChip: _handleDeselect,

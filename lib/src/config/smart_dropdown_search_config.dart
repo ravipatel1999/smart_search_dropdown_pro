@@ -16,6 +16,11 @@ class SmartDropdownSearchConfig {
   final int minChars;
   final bool Function(dynamic item, String query)? customSearch;
 
+  final FocusNode? searchFocusNode;
+  final ValueChanged<String>? onSearchChanged;
+  final ValueChanged<String>? onSearchSubmitted;
+  final VoidCallback? onSearchCleared;
+
   const SmartDropdownSearchConfig({
     this.enabled = true,
     this.hintText = 'Search...',
@@ -29,5 +34,48 @@ class SmartDropdownSearchConfig {
     this.highlightColor,
     this.minChars = 0,
     this.customSearch,
+    this.searchFocusNode,
+    this.onSearchChanged,
+    this.onSearchSubmitted,
+    this.onSearchCleared,
   });
+
+  SmartDropdownSearchConfig copyWith({
+    bool? enabled,
+    String? hintText,
+    String? searchHintText,
+    bool? autoFocus,
+    Duration? debounceDuration,
+    SearchMode? searchMode,
+    Widget? searchIcon,
+    Widget? clearIcon,
+    InputDecoration? inputDecoration,
+    bool? highlightMatches,
+    Color? highlightColor,
+    int? minChars,
+    bool Function(dynamic item, String query)? customSearch,
+    FocusNode? searchFocusNode,
+    ValueChanged<String>? onSearchChanged,
+    ValueChanged<String>? onSearchSubmitted,
+    VoidCallback? onSearchCleared,
+  }) {
+    return SmartDropdownSearchConfig(
+      enabled: enabled ?? this.enabled,
+      hintText: searchHintText ?? hintText ?? this.hintText,
+      autoFocus: autoFocus ?? this.autoFocus,
+      debounceDuration: debounceDuration ?? this.debounceDuration,
+      searchMode: searchMode ?? this.searchMode,
+      searchIcon: searchIcon ?? this.searchIcon,
+      clearIcon: clearIcon ?? this.clearIcon,
+      inputDecoration: inputDecoration ?? this.inputDecoration,
+      highlightMatches: highlightMatches ?? this.highlightMatches,
+      highlightColor: highlightColor ?? this.highlightColor,
+      minChars: minChars ?? this.minChars,
+      customSearch: customSearch ?? this.customSearch,
+      searchFocusNode: searchFocusNode ?? this.searchFocusNode,
+      onSearchChanged: onSearchChanged ?? this.onSearchChanged,
+      onSearchSubmitted: onSearchSubmitted ?? this.onSearchSubmitted,
+      onSearchCleared: onSearchCleared ?? this.onSearchCleared,
+    );
+  }
 }

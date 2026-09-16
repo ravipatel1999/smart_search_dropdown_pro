@@ -15,6 +15,15 @@ class SmartDropdownPopupConfig {
   final double mobileBreakpoint;
   final double offset;
 
+  final double? minWidth;
+  final double? maxWidth;
+  final double? minHeight;
+  final EdgeInsetsGeometry? margin;
+  final Color? barrierColor;
+  final bool closeOnSelect;
+  final bool closeOnOutsideTap;
+  final bool closeOnEscape;
+
   const SmartDropdownPopupConfig({
     this.presentation = DropdownPresentation.popup,
     this.maxHeight = 350.0,
@@ -27,6 +36,14 @@ class SmartDropdownPopupConfig {
     this.padding,
     this.mobileBreakpoint = 600.0,
     this.offset = 4.0,
+    this.minWidth,
+    this.maxWidth,
+    this.minHeight,
+    this.margin,
+    this.barrierColor,
+    this.closeOnSelect = true,
+    this.closeOnOutsideTap = true,
+    this.closeOnEscape = true,
   });
 
   SmartDropdownPopupConfig copyWith({
@@ -41,6 +58,14 @@ class SmartDropdownPopupConfig {
     EdgeInsetsGeometry? padding,
     double? mobileBreakpoint,
     double? offset,
+    double? minWidth,
+    double? maxWidth,
+    double? minHeight,
+    EdgeInsetsGeometry? margin,
+    Color? barrierColor,
+    bool? closeOnSelect,
+    bool? closeOnOutsideTap,
+    bool? closeOnEscape,
   }) {
     return SmartDropdownPopupConfig(
       presentation: presentation ?? this.presentation,
@@ -54,6 +79,14 @@ class SmartDropdownPopupConfig {
       padding: padding ?? this.padding,
       mobileBreakpoint: mobileBreakpoint ?? this.mobileBreakpoint,
       offset: offset ?? this.offset,
+      minWidth: minWidth ?? this.minWidth,
+      maxWidth: maxWidth ?? this.maxWidth,
+      minHeight: minHeight ?? this.minHeight,
+      margin: margin ?? this.margin,
+      barrierColor: barrierColor ?? this.barrierColor,
+      closeOnSelect: closeOnSelect ?? this.closeOnSelect,
+      closeOnOutsideTap: closeOnOutsideTap ?? this.closeOnOutsideTap,
+      closeOnEscape: closeOnEscape ?? this.closeOnEscape,
     );
   }
 }

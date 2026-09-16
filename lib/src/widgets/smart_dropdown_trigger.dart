@@ -17,10 +17,24 @@ class SmartDropdownTrigger<T> extends StatelessWidget {
   final Widget? Function(T item)? iconBuilder;
   final Widget? Function(T item)? avatarBuilder;
   final Widget Function(BuildContext context, T item)? selectedItemBuilder;
+  final Widget? prefixIcon;
+  final String? labelText;
+  final Widget? trailingLabelWidget;
+  final bool showClearButton;
   final VoidCallback onTap;
   final VoidCallback? onClear;
   final ValueChanged<T>? onRemoveChip;
   final FocusNode? focusNode;
+  final InputDecoration? inputDecoration;
+  final bool readOnly;
+  final bool autofocus;
+  final bool required;
+  final Widget Function(BuildContext context)? requiredIndicatorBuilder;
+  final Widget? dropdownIcon;
+  final Widget? openDropdownIcon;
+  final Widget? clearIcon;
+  final VoidCallback? onFocus;
+  final VoidCallback? onBlur;
 
   const SmartDropdownTrigger({
     super.key,
@@ -35,10 +49,24 @@ class SmartDropdownTrigger<T> extends StatelessWidget {
     this.iconBuilder,
     this.avatarBuilder,
     this.selectedItemBuilder,
+    this.prefixIcon,
+    this.labelText,
+    this.trailingLabelWidget,
+    this.showClearButton = true,
     required this.onTap,
     this.onClear,
     this.onRemoveChip,
     this.focusNode,
+    this.inputDecoration,
+    this.readOnly = false,
+    this.autofocus = false,
+    this.required = false,
+    this.requiredIndicatorBuilder,
+    this.dropdownIcon,
+    this.openDropdownIcon,
+    this.clearIcon,
+    this.onFocus,
+    this.onBlur,
   });
 
   @override
@@ -100,6 +128,7 @@ class SmartDropdownTrigger<T> extends StatelessWidget {
         labelBuilder: labelBuilder,
         onRemove: selectionConfig.allowChipRemoval ? onRemoveChip : null,
         enabled: enabled,
+        selectionConfig: selectionConfig,
       );
     } else {
       final item = selectedItem as T;
@@ -142,17 +171,66 @@ class SmartDropdownTrigger<T> extends StatelessWidget {
       }
     }
 
+    Widget? labelHeaderWidget;
+    if (labelText != null || trailingLabelWidget != null) {
+      final trimmed = (labelText ?? '').trim();
+      final isRequired = required || trimmed.endsWith('*');
+      final plainLabel = isRequired && trimmed.endsWith('*')
+          ? trimmed.substring(0, trimmed.length - 1).trim()
+          : trimmed;
+
+      final labelStyle = (theme.textTheme.bodyMedium ?? const TextStyle()).copyWith(
+        fontSize: 13,
+        fontWeight: FontWeight.w600,
+        color: enabled
+            ? (theme.textTheme.titleMedium?.color ??
+                (theme.brightness == Brightness.dark ? Colors.white : const Color(0xFF1A1A1A)))
+            : theme.disabledColor,
+      );
+
+      labelHeaderWidget = Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            if (labelText != null)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(plainLabel, style: labelStyle),
+                  if (isRequired)
+                    if (requiredIndicatorBuilder != null)
+                      requiredIndicatorBuilder!(context)
+                    else
+                      Text(
+                        ' *',
+                        style: labelStyle.copyWith(
+                          color: themeData.errorColor ?? theme.colorScheme.error,
+                        ),
+                      ),
+                ],
+              ),
+            if (trailingLabelWidget != null) trailingLabelWidget!,
+          ],
+        ),
+      );
+    }
+
+    final isClickable = enabled && !readOnly;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
+        if (labelHeaderWidget != null) labelHeaderWidget,
         Semantics(
           button: true,
-          enabled: enabled,
+          enabled: isClickable,
           label: hintText,
           child: InkWell(
             key: const Key('trigger_field'),
-            onTap: enabled ? onTap : null,
+            onTap: isClickable ? onTap : null,
             focusNode: focusNode,
             borderRadius: themeData.getEffectiveBorderRadius(),
             child: AnimatedContainer(
@@ -164,30 +242,40 @@ class SmartDropdownTrigger<T> extends StatelessWidget {
               decoration: decoration,
               child: Row(
                 children: [
+                  if (prefixIcon != null) ...[
+                    prefixIcon!,
+                    const SizedBox(width: SmartDropdownTokens.spaceS),
+                  ],
                   Expanded(child: contentWidget),
-                  if (hasSelection && onClear != null && enabled) ...[
+                  if (showClearButton && hasSelection && onClear != null && isClickable) ...[
                     const SizedBox(width: SmartDropdownTokens.spaceXS),
                     GestureDetector(
                       onTap: onClear,
-                      child: Icon(
-                        Icons.close_rounded,
-                        size: SmartDropdownTokens.iconSize,
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
+                      child: clearIcon ??
+                          Icon(
+                            Icons.close_rounded,
+                            size: SmartDropdownTokens.iconSize,
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
                     ),
                   ],
                   const SizedBox(width: SmartDropdownTokens.spaceXS),
-                  AnimatedRotation(
-                    turns: isOpen ? 0.5 : 0.0,
-                    duration: SmartDropdownTokens.durationFast,
-                    child: Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      size: SmartDropdownTokens.iconSize + 4,
-                      color: enabled
-                          ? (isOpen ? effectivePrimary : theme.colorScheme.onSurfaceVariant)
-                          : theme.disabledColor,
+                  if (isOpen && openDropdownIcon != null)
+                    openDropdownIcon!
+                  else if (!isOpen && dropdownIcon != null)
+                    dropdownIcon!
+                  else
+                    AnimatedRotation(
+                      turns: isOpen ? 0.5 : 0.0,
+                      duration: SmartDropdownTokens.durationFast,
+                      child: Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        size: SmartDropdownTokens.iconSize + 4,
+                        color: enabled
+                            ? (isOpen ? effectivePrimary : theme.colorScheme.onSurfaceVariant)
+                            : theme.disabledColor,
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),

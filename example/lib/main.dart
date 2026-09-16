@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:smart_search_dropdown_pro/smart_search_dropdown.dart';
 import 'models/facility.dart';
+import 'patient_demo.dart';
 
 void main() {
   runApp(const SmartDropdownGalleryApp());
@@ -72,7 +73,7 @@ class _GalleryHomeScreenState extends State<GalleryHomeScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
   }
 
   @override
@@ -123,6 +124,7 @@ class _GalleryHomeScreenState extends State<GalleryHomeScreen>
           isScrollable: true,
           tabs: const [
             Tab(icon: Icon(Icons.grid_view_rounded), text: '16 Variations Gallery'),
+            Tab(icon: Icon(Icons.medical_services_rounded), text: 'Healthcare Patient Demo'),
             Tab(icon: Icon(Icons.assignment_turned_in_rounded), text: 'Form Demo'),
             Tab(icon: Icon(Icons.gamepad_rounded), text: 'Controller Demo'),
             Tab(icon: Icon(Icons.cloud_download_rounded), text: 'Remote & Infinite Scroll'),
@@ -133,6 +135,7 @@ class _GalleryHomeScreenState extends State<GalleryHomeScreen>
         controller: _tabController,
         children: [
           const SixteenVariationsGalleryView(),
+          const PatientDemoScreen(),
           const FormDemoView(),
           const ControllerDemoView(),
           const RemoteSearchDemoView(),

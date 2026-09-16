@@ -26,23 +26,23 @@ class SmartDropdownConfig<T> {
     this.recent = const SmartDropdownRecentConfig(),
   });
 
-  SmartDropdownConfig<T> copyWith({
+  SmartDropdownConfig<R> copyWith<R>({
     SmartDropdownSearchConfig? search,
     SmartDropdownSelectionConfig? selection,
     SmartDropdownPopupConfig? popup,
-    SmartDropdownFilterConfig<T>? filter,
-    SmartDropdownPaginationConfig<T>? pagination,
-    SmartDropdownCreateOptionConfig<T>? createOption,
-    SmartDropdownRecentConfig<T>? recent,
+    SmartDropdownFilterConfig<R>? filter,
+    SmartDropdownPaginationConfig<R>? pagination,
+    SmartDropdownCreateOptionConfig<R>? createOption,
+    SmartDropdownRecentConfig<R>? recent,
   }) {
-    return SmartDropdownConfig<T>(
+    return SmartDropdownConfig<R>(
       search: search ?? this.search,
       selection: selection ?? this.selection,
       popup: popup ?? this.popup,
-      filter: filter ?? this.filter,
-      pagination: pagination ?? this.pagination,
-      createOption: createOption ?? this.createOption,
-      recent: recent ?? this.recent,
+      filter: filter ?? (this.filter is SmartDropdownFilterConfig<R> ? this.filter as SmartDropdownFilterConfig<R> : const SmartDropdownFilterConfig()),
+      pagination: pagination ?? (this.pagination is SmartDropdownPaginationConfig<R> ? this.pagination as SmartDropdownPaginationConfig<R> : const SmartDropdownPaginationConfig()),
+      createOption: createOption ?? (this.createOption is SmartDropdownCreateOptionConfig<R> ? this.createOption as SmartDropdownCreateOptionConfig<R> : const SmartDropdownCreateOptionConfig()),
+      recent: recent ?? (this.recent is SmartDropdownRecentConfig<R> ? this.recent as SmartDropdownRecentConfig<R> : const SmartDropdownRecentConfig()),
     );
   }
 }

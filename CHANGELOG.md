@@ -1,3 +1,14 @@
+## 1.0.8
+
+- **Full Customization Upgrade**: Complete 46-phase component customization release.
+- **Input Field & Labeling**: Native `InputDecoration` integration, `readOnly`, `autofocus`, `focusNode`, `required` indicator builder, `onFocus`, and `onBlur`.
+- **Chip Customization**: Added `chipBuilder`, `chipLabelBuilder`, `chipAvatarBuilder`, `chipDeleteIcon`, `chipTextStyle`, `chipBackgroundColor`, `chipBorder`, `chipPadding`, `maxVisibleChips`, `overflowChipBuilder`.
+- **Search & Popup Control**: Added search focus nodes, search callbacks (`onSearchChanged`, `onSearchSubmitted`, `onSearchCleared`), min/max sizing bounds, barrier color, and dismissal triggers (`closeOnSelect`, `closeOnOutsideTap`, `closeOnEscape`).
+- **Controller Expansion**: Added convenience helper methods (`clear()`, `clearSearch()`, `refresh()`, `reload()`, `loadMore()`, `focusSearch()`, `blurSearch()`).
+- **Stale Response Protection**: Monotonically increasing `_searchGeneration` request token mechanism to eliminate async response race conditions.
+- **Healthcare Patient Demo**: Included interactive Patient EHR search demo (`patient_demo.dart`) with MRN search, paged async loader, and race condition tests.
+- **Comprehensive Verification**: 100% passing tests and 0 `flutter analyze` issues.
+
 ## 1.0.5
 
 - Optimized `pubspec.yaml` description length (175 characters) to comply with pub.dev Pana analysis rules and achieve 160/160 pub points.

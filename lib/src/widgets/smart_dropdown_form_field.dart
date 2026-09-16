@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import '../config/smart_dropdown_config.dart';
+import '../config/smart_dropdown_pagination_config.dart';
 import '../config/smart_dropdown_selection_config.dart';
 import '../enums/selection_mode.dart';
+import '../models/dropdown_item_state.dart';
 import 'smart_search_dropdown.dart';
 
 /// FormField wrapper for [SmartSearchDropdown] enabling Flutter [Form] validation and submission.
@@ -26,6 +28,19 @@ class SmartSearchDropdownFormField<T> extends FormField<dynamic> {
     SmartDropdownConfig<T>? config,
     SmartDropdownSelectionConfig? selectionConfig,
     String hintText = 'Select Option',
+    String? labelText,
+    Widget? prefixIcon,
+    Widget? trailingLabelWidget,
+    String? searchHint,
+    bool? showClearButton,
+    double? maxPanelHeight,
+    bool Function(T item)? isItemEnabled,
+    Widget Function(BuildContext context, T item, SmartDropdownItemState state)? itemBuilder,
+    Future<List<T>> Function(String query)? asyncSearch,
+    SmartDropdownPaginationConfig<T>? pagination,
+    Future<DropdownPageResult<T>> Function(String query, int page)? loader,
+    int? debounceMs,
+    int? pageSize,
   }) : super(
           initialValue: (selectionConfig?.mode == SelectionMode.multiple)
               ? initialMultiValue
@@ -56,6 +71,19 @@ class SmartSearchDropdownFormField<T> extends FormField<dynamic> {
               hintText: hintText,
               enabled: state.widget.enabled,
               errorText: state.errorText,
+              labelText: labelText,
+              prefixIcon: prefixIcon,
+              trailingLabelWidget: trailingLabelWidget,
+              searchHint: searchHint,
+              showClearButton: showClearButton,
+              maxPanelHeight: maxPanelHeight,
+              isItemEnabled: isItemEnabled,
+              itemBuilder: itemBuilder,
+              asyncSearch: asyncSearch,
+              pagination: pagination,
+              loader: loader,
+              debounceMs: debounceMs,
+              pageSize: pageSize,
             );
           },
         );

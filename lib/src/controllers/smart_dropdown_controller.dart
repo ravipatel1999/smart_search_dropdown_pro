@@ -28,6 +28,10 @@ class SmartDropdownController<T> extends ChangeNotifier {
   T? get selectedItem => _selectedItems.isNotEmpty ? _selectedItems.first : null;
   List<T> get selectedItems => List.unmodifiable(_selectedItems);
 
+  VoidCallback? _onRefresh;
+  VoidCallback? _onFocusSearch;
+  VoidCallback? _onBlurSearch;
+
   void attachCallbacks({
     VoidCallback? onOpen,
     VoidCallback? onClose,
@@ -37,6 +41,9 @@ class SmartDropdownController<T> extends ChangeNotifier {
     Function? onSelectAll,
     VoidCallback? onClearAll,
     Function? onLoadMore,
+    VoidCallback? onRefresh,
+    VoidCallback? onFocusSearch,
+    VoidCallback? onBlurSearch,
   }) {
     _onOpen = onOpen;
     _onClose = onClose;
@@ -46,6 +53,9 @@ class SmartDropdownController<T> extends ChangeNotifier {
     _onSelectAll = onSelectAll;
     _onClearAll = onClearAll;
     _onLoadMore = onLoadMore;
+    _onRefresh = onRefresh;
+    _onFocusSearch = onFocusSearch;
+    _onBlurSearch = onBlurSearch;
   }
 
   void detachCallbacks() {
@@ -57,6 +67,9 @@ class SmartDropdownController<T> extends ChangeNotifier {
     _onSelectAll = null;
     _onClearAll = null;
     _onLoadMore = null;
+    _onRefresh = null;
+    _onFocusSearch = null;
+    _onBlurSearch = null;
   }
 
   void open() {
@@ -108,6 +121,32 @@ class SmartDropdownController<T> extends ChangeNotifier {
     _selectedItems.clear();
     _onClearAll?.call();
     notifyListeners();
+  }
+
+  /// Alias for [clearAll].
+  void clear() => clearAll();
+
+  /// Clears current search filter query string.
+  void clearSearch() {
+    setSearchQuery('');
+  }
+
+  /// Triggers refresh / reload of async or loader dataset.
+  void refresh() {
+    _onRefresh?.call();
+  }
+
+  /// Alias for [refresh].
+  void reload() => refresh();
+
+  /// Programmatically focuses search field in popup.
+  void focusSearch() {
+    _onFocusSearch?.call();
+  }
+
+  /// Programmatically blurs search field.
+  void blurSearch() {
+    _onBlurSearch?.call();
   }
 
   void setSelection(List<T> items) {

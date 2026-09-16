@@ -47,13 +47,40 @@ Add `smart_search_dropdown_pro` to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  smart_search_dropdown_pro: ^1.0.5
+  smart_search_dropdown_pro: ^1.0.8
 ```
 
 Import the package entrypoint in your Flutter code:
 
 ```dart
 import 'package:smart_search_dropdown_pro/smart_search_dropdown.dart';
+```
+
+---
+
+## 📝 TextFormField & InputDecoration Parity
+
+`SmartSearchDropdown` seamlessly integrates with native Flutter `InputDecoration`. You can specify labels, icons, borders, helper text, and fill colors just like a standard `TextFormField`.
+
+```dart
+SmartSearchDropdown<Patient>(
+  decoration: const InputDecoration(
+    labelText: 'Patient Name *',
+    hintText: 'Search patient by MRN or Name...',
+    prefixIcon: Icon(Icons.person_search),
+    suffixIcon: Icon(Icons.arrow_drop_down_circle),
+    filled: true,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.all(Radius.circular(12)),
+    ),
+  ),
+  items: patients,
+  itemLabelBuilder: (patient) => patient.name,
+  itemSubtitleBuilder: (patient) => 'MRN: ${patient.mrn} • ${patient.primaryCondition}',
+  onChanged: (patient) {
+    print('Selected patient: ${patient?.name}');
+  },
+)
 ```
 
 ---

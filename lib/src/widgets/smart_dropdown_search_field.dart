@@ -25,8 +25,7 @@ class SmartDropdownSearchField extends StatefulWidget {
       _SmartDropdownSearchFieldState();
 }
 
-class _SmartDropdownSearchFieldState
-    extends State<SmartDropdownSearchField> {
+class _SmartDropdownSearchFieldState extends State<SmartDropdownSearchField> {
   late final TextEditingController _controller;
   late final FocusNode _focusNode;
   bool _isInternalController = false;
@@ -108,22 +107,19 @@ class _SmartDropdownSearchFieldState
       fillColor: themeData.surfaceColor ??
           theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
       border: OutlineInputBorder(
-        borderRadius:
-            BorderRadius.circular(SmartDropdownTokens.radiusM),
+        borderRadius: BorderRadius.circular(SmartDropdownTokens.radiusM),
         borderSide: BorderSide(
           color: theme.colorScheme.outlineVariant,
         ),
       ),
       enabledBorder: OutlineInputBorder(
-        borderRadius:
-            BorderRadius.circular(SmartDropdownTokens.radiusM),
+        borderRadius: BorderRadius.circular(SmartDropdownTokens.radiusM),
         borderSide: BorderSide(
           color: theme.colorScheme.outlineVariant,
         ),
       ),
       focusedBorder: OutlineInputBorder(
-        borderRadius:
-            BorderRadius.circular(SmartDropdownTokens.radiusM),
+        borderRadius: BorderRadius.circular(SmartDropdownTokens.radiusM),
         borderSide: BorderSide(
           color: effectivePrimary,
           width: 1.5,

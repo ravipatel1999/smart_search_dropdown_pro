@@ -7,15 +7,15 @@ void main() {
     test('contains search matching', () {
       expect(
         SearchUtils.matches(
-          label: 'Sunshine Hospital',
-          query: 'sun',
+          label: 'MacBook Pro',
+          query: 'mac',
           searchMode: SearchMode.contains,
         ),
         isTrue,
       );
       expect(
         SearchUtils.matches(
-          label: 'Sunshine Hospital',
+          label: 'MacBook Pro',
           query: 'xyz',
           searchMode: SearchMode.contains,
         ),
@@ -26,16 +26,16 @@ void main() {
     test('startsWith search matching', () {
       expect(
         SearchUtils.matches(
-          label: 'Sunshine Hospital',
-          query: 'sun',
+          label: 'MacBook Pro',
+          query: 'mac',
           searchMode: SearchMode.startsWith,
         ),
         isTrue,
       );
       expect(
         SearchUtils.matches(
-          label: 'Sunshine Hospital',
-          query: 'hosp',
+          label: 'MacBook Pro',
+          query: 'book',
           searchMode: SearchMode.startsWith,
         ),
         isFalse,
@@ -45,8 +45,8 @@ void main() {
     test('fuzzy search matching', () {
       expect(
         SearchUtils.matches(
-          label: 'Sunshine Hospital',
-          query: 'snshp',
+          label: 'MacBook Pro',
+          query: 'mcbk',
           searchMode: SearchMode.fuzzy,
         ),
         isTrue,

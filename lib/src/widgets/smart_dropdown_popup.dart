@@ -26,8 +26,10 @@ class SmartDropdownPopup<T> extends StatefulWidget {
   final Widget? Function(T item)? avatarBuilder;
   final Widget? Function(T item)? statusBuilder;
   final Widget? Function(T item)? trailingBuilder;
-  final Widget Function(BuildContext context, T item, SmartDropdownItemState state)? itemBuilder;
-  final Widget Function(BuildContext context, String groupName)? groupHeaderBuilder;
+  final Widget Function(
+      BuildContext context, T item, SmartDropdownItemState state)? itemBuilder;
+  final Widget Function(BuildContext context, String groupName)?
+      groupHeaderBuilder;
 
   final WidgetBuilder? emptyBuilder;
   final Widget Function(BuildContext context, String error)? errorBuilder;
@@ -44,6 +46,13 @@ class SmartDropdownPopup<T> extends StatefulWidget {
   final String? error;
   final bool isMobileModal;
   final VoidCallback? onCloseModal;
+  final Widget Function(BuildContext context, ValueChanged<String> onChanged)?
+      searchFieldBuilder;
+  final Widget? Function(T item)? itemLeadingBuilder;
+  final bool Function(T item)? isItemDisabled;
+  final bool? showScrollbar;
+  final bool? showCheckbox;
+  final bool? showStatus;
 
   const SmartDropdownPopup({
     super.key,
@@ -64,6 +73,12 @@ class SmartDropdownPopup<T> extends StatefulWidget {
     this.emptyBuilder,
     this.errorBuilder,
     this.loadingBuilder,
+    this.searchFieldBuilder,
+    this.itemLeadingBuilder,
+    this.isItemDisabled,
+    this.showScrollbar,
+    this.showCheckbox,
+    this.showStatus,
     required this.onItemTap,
     required this.onSearchChanged,
     required this.onClearSearch,
@@ -199,7 +214,8 @@ class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
           );
     } else if (displayItems.isEmpty &&
         (widget.groupedItems == null || widget.groupedItems!.isEmpty) &&
-        (widget.recentPopularItems == null || widget.recentPopularItems!.isEmpty)) {
+        (widget.recentPopularItems == null ||
+            widget.recentPopularItems!.isEmpty)) {
       final bool showCreateOption = widget.config.createOption.enabled &&
           widget.controller.searchQuery.isNotEmpty &&
           widget.onCreateOption != null;
@@ -207,7 +223,8 @@ class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
       body = Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (showCreateOption) _buildCreateOptionTile(context, widget.controller.searchQuery),
+          if (showCreateOption)
+            _buildCreateOptionTile(context, widget.controller.searchQuery),
           Expanded(
             child: widget.emptyBuilder?.call(context) ??
                 Center(
@@ -219,7 +236,8 @@ class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
                         Icon(
                           Icons.find_in_page_outlined,
                           size: 44,
-                          color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+                          color: theme.colorScheme.onSurfaceVariant
+                              .withValues(alpha: 0.5),
                         ),
                         const SizedBox(height: 12),
                         Text(
@@ -251,13 +269,15 @@ class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
     final containerDecoration = BoxDecoration(
       color: themeData.getEffectiveBackgroundColor(context),
       borderRadius: widget.isMobileModal
-          ? const BorderRadius.vertical(top: Radius.circular(SmartDropdownTokens.radiusXL))
+          ? const BorderRadius.vertical(
+              top: Radius.circular(SmartDropdownTokens.radiusXL))
           : themeData.getEffectiveBorderRadius(),
       boxShadow: widget.isMobileModal
           ? null
           : [
               BoxShadow(
-                color: themeData.shadowColor ?? Colors.black.withValues(alpha: 0.12),
+                color: themeData.shadowColor ??
+                    Colors.black.withValues(alpha: 0.12),
                 blurRadius: widget.config.popup.elevation * 2,
                 offset: Offset(0, widget.config.popup.elevation),
               ),
@@ -290,22 +310,27 @@ class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
                     ),
                     IconButton(
                       icon: const Icon(Icons.close_rounded),
-                      onPressed: widget.onCloseModal ?? () => widget.controller.close(),
+                      onPressed: widget.onCloseModal ??
+                          () => widget.controller.close(),
                     ),
                   ],
                 ),
               ),
               const Divider(height: 1),
             ],
-            if (widget.config.filter.enabled && widget.config.filter.builder != null) ...[
+            if (widget.config.filter.enabled &&
+                widget.config.filter.builder != null) ...[
               widget.config.filter.builder!(context, widget.controller),
             ],
             if (widget.config.search.enabled) ...[
-              SmartDropdownSearchField(
-                config: widget.config.search,
-                onChanged: widget.onSearchChanged,
-                onClear: widget.onClearSearch,
-              ),
+              if (widget.searchFieldBuilder != null)
+                widget.searchFieldBuilder!(context, widget.onSearchChanged)
+              else
+                SmartDropdownSearchField(
+                  config: widget.config.search,
+                  onChanged: widget.onSearchChanged,
+                  onClear: widget.onClearSearch,
+                ),
             ],
             if (isMulti &&
                 (widget.config.selection.showSelectAll ||
@@ -324,7 +349,8 @@ class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
             if (isMulti && widget.config.selection.showConfirmBar) ...[
               const Divider(height: 1),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -404,8 +430,10 @@ class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
               else
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  color: theme.colorScheme.surfaceContainerHighest
+                      .withValues(alpha: 0.4),
                   child: Text(
                     group.name,
                     style: theme.textTheme.labelMedium?.copyWith(
@@ -416,9 +444,11 @@ class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
                 ),
               ...group.items.map((item) {
                 final isSelected = widget.selectedItems.contains(item);
+                final isDisabled = widget.isItemDisabled?.call(item) ?? false;
                 final itemState = SmartDropdownItemState(
                   index: widget.items.indexOf(item),
                   isSelected: isSelected,
+                  isDisabled: isDisabled,
                   searchQuery: widget.controller.searchQuery,
                 );
                 return SmartDropdownItemTile<T>(
@@ -428,8 +458,11 @@ class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
                   subtitle: widget.subtitleBuilder?.call(item),
                   icon: widget.iconBuilder?.call(item),
                   avatar: widget.avatarBuilder?.call(item),
-                  status: widget.statusBuilder?.call(item),
+                  status: (widget.showStatus ?? true)
+                      ? widget.statusBuilder?.call(item)
+                      : null,
                   trailing: widget.trailingBuilder?.call(item),
+                  itemLeadingBuilder: widget.itemLeadingBuilder,
                   isMultiSelect: isMulti,
                   highlightMatches: widget.config.search.highlightMatches,
                   highlightColor: widget.config.search.highlightColor,
@@ -444,7 +477,8 @@ class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
     }
 
     // Recent / Popular sections layout
-    if (widget.recentPopularItems != null && widget.recentPopularItems!.isNotEmpty) {
+    if (widget.recentPopularItems != null &&
+        widget.recentPopularItems!.isNotEmpty) {
       String? currentHeader;
 
       return ListView.builder(
@@ -466,9 +500,11 @@ class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
           }
 
           final isSelected = widget.selectedItems.contains(wrapper.item);
+          final isDisabled = widget.isItemDisabled?.call(wrapper.item) ?? false;
           final itemState = SmartDropdownItemState(
             index: index,
             isSelected: isSelected,
+            isDisabled: isDisabled,
             searchQuery: widget.controller.searchQuery,
           );
 
@@ -483,8 +519,11 @@ class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
                     ? const Icon(Icons.star_rounded, color: Colors.amber)
                     : widget.iconBuilder?.call(wrapper.item)),
             avatar: widget.avatarBuilder?.call(wrapper.item),
-            status: widget.statusBuilder?.call(wrapper.item),
+            status: (widget.showStatus ?? true)
+                ? widget.statusBuilder?.call(wrapper.item)
+                : null,
             trailing: widget.trailingBuilder?.call(wrapper.item),
+            itemLeadingBuilder: widget.itemLeadingBuilder,
             isMultiSelect: isMulti,
             highlightMatches: widget.config.search.highlightMatches,
             highlightColor: widget.config.search.highlightColor,
@@ -499,8 +538,10 @@ class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
               children: [
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  color: theme.colorScheme.surfaceContainerHighest
+                      .withValues(alpha: 0.3),
                   child: Text(
                     headerTitle,
                     style: theme.textTheme.labelMedium?.copyWith(
@@ -539,7 +580,8 @@ class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
 
         final int itemIndex = showCreateOption ? index - 1 : index;
 
-        if (itemIndex == displayItems.length && widget.config.pagination.enabled) {
+        if (itemIndex == displayItems.length &&
+            widget.config.pagination.enabled) {
           if (widget.config.pagination.loadingFooterBuilder != null) {
             return widget.config.pagination.loadingFooterBuilder!(context);
           }
@@ -568,9 +610,11 @@ class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
 
         final item = displayItems[itemIndex];
         final isSelected = widget.selectedItems.contains(item);
+        final isDisabled = widget.isItemDisabled?.call(item) ?? false;
         final itemState = SmartDropdownItemState(
           index: itemIndex,
           isSelected: isSelected,
+          isDisabled: isDisabled,
           searchQuery: widget.controller.searchQuery,
         );
 
@@ -581,8 +625,11 @@ class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
           subtitle: widget.subtitleBuilder?.call(item),
           icon: widget.iconBuilder?.call(item),
           avatar: widget.avatarBuilder?.call(item),
-          status: widget.statusBuilder?.call(item),
+          status: (widget.showStatus ?? true)
+              ? widget.statusBuilder?.call(item)
+              : null,
           trailing: widget.trailingBuilder?.call(item),
+          itemLeadingBuilder: widget.itemLeadingBuilder,
           isMultiSelect: isMulti,
           highlightMatches: widget.config.search.highlightMatches,
           highlightColor: widget.config.search.highlightColor,

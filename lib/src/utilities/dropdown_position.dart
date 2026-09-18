@@ -37,11 +37,13 @@ abstract class DropdownPositionCalculator {
 
     final spaceAbove = targetPosition.dy - padding.top - verticalOffset - 16.0;
 
-    final openAbove = spaceBelow < preferredMaxHeight && spaceAbove > spaceBelow;
+    final openAbove =
+        spaceBelow < preferredMaxHeight && spaceAbove > spaceBelow;
 
     final double availableHeight = openAbove ? spaceAbove : spaceBelow;
-    final double effectiveMaxHeight =
-        availableHeight < preferredMaxHeight ? availableHeight : preferredMaxHeight;
+    final double effectiveMaxHeight = availableHeight < preferredMaxHeight
+        ? availableHeight
+        : preferredMaxHeight;
 
     final double width = customWidth ?? targetSize.width;
 

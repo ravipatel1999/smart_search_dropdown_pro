@@ -57,7 +57,8 @@ class SmartDropdownMultiSelectHeader extends StatelessWidget {
               onTap: onToggleSelectAll,
               borderRadius: BorderRadius.circular(SmartDropdownTokens.radiusS),
               child: Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4.0, horizontal: 4.0),
+                padding:
+                    const EdgeInsets.symmetric(vertical: 4.0, horizontal: 4.0),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -123,9 +124,10 @@ class SmartDropdownSelectedChips<T> extends StatelessWidget {
     final config = selectionConfig;
 
     final maxVisible = config?.maxVisibleChips;
-    final visibleItems = (maxVisible != null && maxVisible < selectedItems.length)
-        ? selectedItems.sublist(0, maxVisible)
-        : selectedItems;
+    final visibleItems =
+        (maxVisible != null && maxVisible < selectedItems.length)
+            ? selectedItems.sublist(0, maxVisible)
+            : selectedItems;
     final overflowCount = selectedItems.length - visibleItems.length;
 
     final spacing = config?.chipSpacing ?? 6.0;
@@ -144,7 +146,8 @@ class SmartDropdownSelectedChips<T> extends StatelessWidget {
             return config!.chipBuilder!(context, item, removeCallback);
           }
 
-          final labelTextStr = config?.chipLabelBuilder?.call(item) ?? labelBuilder(item);
+          final labelTextStr =
+              config?.chipLabelBuilder?.call(item) ?? labelBuilder(item);
           final avatarWidget = config?.chipAvatarBuilder?.call(item);
           final deleteIconWidget = config?.chipDeleteIcon ??
               Icon(
@@ -163,10 +166,12 @@ class SmartDropdownSelectedChips<T> extends StatelessWidget {
                     fontWeight: FontWeight.w500,
                   ),
             ),
-            backgroundColor: config?.chipBackgroundColor ?? effectivePrimary.withValues(alpha: 0.12),
+            backgroundColor: config?.chipBackgroundColor ??
+                effectivePrimary.withValues(alpha: 0.12),
             deleteIcon: enabled && onRemove != null ? deleteIconWidget : null,
             onDeleted: removeCallback,
-            padding: config?.chipPadding ?? const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
+            padding: config?.chipPadding ??
+                const EdgeInsets.symmetric(horizontal: 6, vertical: 0),
             visualDensity: VisualDensity.compact,
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             shape: RoundedRectangleBorder(

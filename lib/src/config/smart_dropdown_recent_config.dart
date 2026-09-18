@@ -21,4 +21,26 @@ class SmartDropdownRecentConfig<T> {
     this.showPopular = true,
     this.storage,
   });
+
+  SmartDropdownRecentConfig<T> copyWith({
+    bool? enabled,
+    List<T>? recentItems,
+    List<T>? popularItems,
+    String? recentTitle,
+    String? popularTitle,
+    bool? showRecent,
+    bool? showPopular,
+    RecentItemsStorage<T>? storage,
+  }) {
+    return SmartDropdownRecentConfig<T>(
+      enabled: enabled ?? this.enabled,
+      recentItems: recentItems ?? this.recentItems,
+      popularItems: popularItems ?? this.popularItems,
+      recentTitle: recentTitle ?? this.recentTitle,
+      popularTitle: popularTitle ?? this.popularTitle,
+      showRecent: showRecent ?? this.showRecent,
+      showPopular: showPopular ?? this.showPopular,
+      storage: storage ?? this.storage,
+    );
+  }
 }

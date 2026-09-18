@@ -14,7 +14,8 @@ class SmartDropdownSelectionConfig {
   final String cancelText;
   final String confirmText;
   final bool allowChipRemoval;
-  final Widget Function(BuildContext context, dynamic item, VoidCallback? onRemove)? chipBuilder;
+  final Widget Function(
+      BuildContext context, dynamic item, VoidCallback? onRemove)? chipBuilder;
   final String Function(dynamic item)? chipLabelBuilder;
   final Widget Function(dynamic item)? chipAvatarBuilder;
   final Widget? chipDeleteIcon;
@@ -25,7 +26,8 @@ class SmartDropdownSelectionConfig {
   final double chipSpacing;
   final double chipRunSpacing;
   final int? maxVisibleChips;
-  final Widget Function(BuildContext context, int remainingCount)? overflowChipBuilder;
+  final Widget Function(BuildContext context, int remainingCount)?
+      overflowChipBuilder;
 
   const SmartDropdownSelectionConfig({
     this.mode = SelectionMode.single,
@@ -67,7 +69,8 @@ class SmartDropdownSelectionConfig {
     String? cancelText,
     String? confirmText,
     bool? allowChipRemoval,
-    Widget Function(BuildContext context, dynamic item, VoidCallback? onRemove)? chipBuilder,
+    Widget Function(BuildContext context, dynamic item, VoidCallback? onRemove)?
+        chipBuilder,
     String Function(dynamic item)? chipLabelBuilder,
     Widget Function(dynamic item)? chipAvatarBuilder,
     Widget? chipDeleteIcon,
@@ -78,7 +81,8 @@ class SmartDropdownSelectionConfig {
     double? chipSpacing,
     double? chipRunSpacing,
     int? maxVisibleChips,
-    Widget Function(BuildContext context, int remainingCount)? overflowChipBuilder,
+    Widget Function(BuildContext context, int remainingCount)?
+        overflowChipBuilder,
   }) {
     return SmartDropdownSelectionConfig(
       mode: mode ?? this.mode,

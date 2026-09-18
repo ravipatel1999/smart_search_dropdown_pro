@@ -21,6 +21,7 @@ class SmartDropdownTrigger<T> extends StatelessWidget {
   final String? labelText;
   final Widget? trailingLabelWidget;
   final bool showClearButton;
+  final bool showDropdownIcon;
   final VoidCallback onTap;
   final VoidCallback? onClear;
   final ValueChanged<T>? onRemoveChip;
@@ -53,6 +54,7 @@ class SmartDropdownTrigger<T> extends StatelessWidget {
     this.labelText,
     this.trailingLabelWidget,
     this.showClearButton = true,
+    this.showDropdownIcon = true,
     required this.onTap,
     this.onClear,
     this.onRemoveChip,
@@ -76,7 +78,8 @@ class SmartDropdownTrigger<T> extends StatelessWidget {
     final effectivePrimary = themeData.getEffectivePrimaryColor(context);
 
     final bool isMulti = selectionConfig.isMulti;
-    final bool hasSelection = isMulti ? selectedItems.isNotEmpty : selectedItem != null;
+    final bool hasSelection =
+        isMulti ? selectedItems.isNotEmpty : selectedItem != null;
     final bool hasError = errorText != null && errorText!.isNotEmpty;
 
     Color borderColor;
@@ -158,8 +161,11 @@ class SmartDropdownTrigger<T> extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
-                style: (themeData.labelStyle ?? theme.textTheme.bodyMedium)?.copyWith(
-                  color: enabled ? theme.colorScheme.onSurface : theme.disabledColor,
+                style: (themeData.labelStyle ?? theme.textTheme.bodyMedium)
+                    ?.copyWith(
+                  color: enabled
+                      ? theme.colorScheme.onSurface
+                      : theme.disabledColor,
                   fontWeight: FontWeight.w500,
                 ),
                 maxLines: 1,
@@ -179,12 +185,15 @@ class SmartDropdownTrigger<T> extends StatelessWidget {
           ? trimmed.substring(0, trimmed.length - 1).trim()
           : trimmed;
 
-      final labelStyle = (theme.textTheme.bodyMedium ?? const TextStyle()).copyWith(
+      final labelStyle =
+          (theme.textTheme.bodyMedium ?? const TextStyle()).copyWith(
         fontSize: 13,
         fontWeight: FontWeight.w600,
         color: enabled
             ? (theme.textTheme.titleMedium?.color ??
-                (theme.brightness == Brightness.dark ? Colors.white : const Color(0xFF1A1A1A)))
+                (theme.brightness == Brightness.dark
+                    ? Colors.white
+                    : const Color(0xFF1A1A1A)))
             : theme.disabledColor,
       );
 
@@ -206,7 +215,8 @@ class SmartDropdownTrigger<T> extends StatelessWidget {
                       Text(
                         ' *',
                         style: labelStyle.copyWith(
-                          color: themeData.errorColor ?? theme.colorScheme.error,
+                          color:
+                              themeData.errorColor ?? theme.colorScheme.error,
                         ),
                       ),
                 ],
@@ -238,7 +248,8 @@ class SmartDropdownTrigger<T> extends StatelessWidget {
               constraints: const BoxConstraints(
                 minHeight: SmartDropdownTokens.minTouchTarget,
               ),
-              padding: themeData.contentPadding ?? SmartDropdownTokens.defaultContentPadding,
+              padding: themeData.contentPadding ??
+                  SmartDropdownTokens.defaultContentPadding,
               decoration: decoration,
               child: Row(
                 children: [
@@ -247,7 +258,10 @@ class SmartDropdownTrigger<T> extends StatelessWidget {
                     const SizedBox(width: SmartDropdownTokens.spaceS),
                   ],
                   Expanded(child: contentWidget),
-                  if (showClearButton && hasSelection && onClear != null && isClickable) ...[
+                  if (showClearButton &&
+                      hasSelection &&
+                      onClear != null &&
+                      isClickable) ...[
                     const SizedBox(width: SmartDropdownTokens.spaceXS),
                     GestureDetector(
                       onTap: onClear,
@@ -259,23 +273,27 @@ class SmartDropdownTrigger<T> extends StatelessWidget {
                           ),
                     ),
                   ],
-                  const SizedBox(width: SmartDropdownTokens.spaceXS),
-                  if (isOpen && openDropdownIcon != null)
-                    openDropdownIcon!
-                  else if (!isOpen && dropdownIcon != null)
-                    dropdownIcon!
-                  else
-                    AnimatedRotation(
-                      turns: isOpen ? 0.5 : 0.0,
-                      duration: SmartDropdownTokens.durationFast,
-                      child: Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        size: SmartDropdownTokens.iconSize + 4,
-                        color: enabled
-                            ? (isOpen ? effectivePrimary : theme.colorScheme.onSurfaceVariant)
-                            : theme.disabledColor,
+                  if (showDropdownIcon) ...[
+                    const SizedBox(width: SmartDropdownTokens.spaceXS),
+                    if (isOpen && openDropdownIcon != null)
+                      openDropdownIcon!
+                    else if (!isOpen && dropdownIcon != null)
+                      dropdownIcon!
+                    else
+                      AnimatedRotation(
+                        turns: isOpen ? 0.5 : 0.0,
+                        duration: SmartDropdownTokens.durationFast,
+                        child: Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          size: SmartDropdownTokens.iconSize + 4,
+                          color: enabled
+                              ? (isOpen
+                                  ? effectivePrimary
+                                  : theme.colorScheme.onSurfaceVariant)
+                              : theme.disabledColor,
+                        ),
                       ),
-                    ),
+                  ],
                 ],
               ),
             ),

@@ -1,6 +1,6 @@
 name: smart_search_dropdown_pro
 description: A powerful Flutter searchable dropdown supporting autocomplete, multi-select, async API search, infinite scroll, grouping, icons, status tags, dark mode, and responsive UI.
-version: 1.0.8
+version: 1.0.9
 
 homepage: https://github.com/ravipatel1999/smart_search_dropdown_pro
 repository: https://github.com/ravipatel1999/smart_search_dropdown_pro

@@ -26,7 +26,10 @@ class SmartDropdownPaginationConfig<T> {
     return SmartDropdownPaginationConfig<R>(
       enabled: enabled ?? this.enabled,
       scrollThreshold: scrollThreshold ?? this.scrollThreshold,
-      onLoadMore: onLoadMore ?? (onLoadMore == null ? (this.onLoadMore as Future<List<R>> Function(int page)?) : null),
+      onLoadMore: onLoadMore ??
+          (onLoadMore == null
+              ? (this.onLoadMore as Future<List<R>> Function(int page)?)
+              : null),
       loadingFooterBuilder: loadingFooterBuilder ?? this.loadingFooterBuilder,
       pageSize: pageSize ?? this.pageSize,
     );

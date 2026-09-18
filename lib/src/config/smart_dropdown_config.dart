@@ -39,10 +39,22 @@ class SmartDropdownConfig<T> {
       search: search ?? this.search,
       selection: selection ?? this.selection,
       popup: popup ?? this.popup,
-      filter: filter ?? (this.filter is SmartDropdownFilterConfig<R> ? this.filter as SmartDropdownFilterConfig<R> : const SmartDropdownFilterConfig()),
-      pagination: pagination ?? (this.pagination is SmartDropdownPaginationConfig<R> ? this.pagination as SmartDropdownPaginationConfig<R> : const SmartDropdownPaginationConfig()),
-      createOption: createOption ?? (this.createOption is SmartDropdownCreateOptionConfig<R> ? this.createOption as SmartDropdownCreateOptionConfig<R> : const SmartDropdownCreateOptionConfig()),
-      recent: recent ?? (this.recent is SmartDropdownRecentConfig<R> ? this.recent as SmartDropdownRecentConfig<R> : const SmartDropdownRecentConfig()),
+      filter: filter ??
+          (this.filter is SmartDropdownFilterConfig<R>
+              ? this.filter as SmartDropdownFilterConfig<R>
+              : const SmartDropdownFilterConfig()),
+      pagination: pagination ??
+          (this.pagination is SmartDropdownPaginationConfig<R>
+              ? this.pagination as SmartDropdownPaginationConfig<R>
+              : const SmartDropdownPaginationConfig()),
+      createOption: createOption ??
+          (this.createOption is SmartDropdownCreateOptionConfig<R>
+              ? this.createOption as SmartDropdownCreateOptionConfig<R>
+              : const SmartDropdownCreateOptionConfig()),
+      recent: recent ??
+          (this.recent is SmartDropdownRecentConfig<R>
+              ? this.recent as SmartDropdownRecentConfig<R>
+              : const SmartDropdownRecentConfig()),
     );
   }
 }

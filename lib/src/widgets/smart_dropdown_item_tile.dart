@@ -14,11 +14,13 @@ class SmartDropdownItemTile<T> extends StatelessWidget {
   final Widget? avatar;
   final Widget? status;
   final Widget? trailing;
+  final Widget? Function(T item)? itemLeadingBuilder;
   final bool isMultiSelect;
   final bool highlightMatches;
   final Color? highlightColor;
   final ValueChanged<T> onTap;
-  final Widget Function(BuildContext context, T item, SmartDropdownItemState state)? itemBuilder;
+  final Widget Function(
+      BuildContext context, T item, SmartDropdownItemState state)? itemBuilder;
 
   const SmartDropdownItemTile({
     super.key,
@@ -30,6 +32,7 @@ class SmartDropdownItemTile<T> extends StatelessWidget {
     this.avatar,
     this.status,
     this.trailing,
+    this.itemLeadingBuilder,
     required this.isMultiSelect,
     this.highlightMatches = false,
     this.highlightColor,
@@ -54,7 +57,7 @@ class SmartDropdownItemTile<T> extends StatelessWidget {
 
     final Color backgroundColor = state.isSelected
         ? effectiveSelectedBg
-        : (state.isFocused
+        : (state.isFocused || state.isHovered
             ? theme.hoverColor
             : Colors.transparent);
 
@@ -77,8 +80,12 @@ class SmartDropdownItemTile<T> extends StatelessWidget {
           : theme.colorScheme.onSurfaceVariant,
     );
 
+    final customLeading = itemLeadingBuilder?.call(item);
+
     Widget leadingWidget;
-    if (isMultiSelect) {
+    if (customLeading != null) {
+      leadingWidget = customLeading;
+    } else if (isMultiSelect) {
       leadingWidget = Checkbox(
         value: state.isSelected,
         onChanged: state.isDisabled ? null : (_) => onTap(item),
@@ -93,7 +100,9 @@ class SmartDropdownItemTile<T> extends StatelessWidget {
       leadingWidget = IconTheme(
         data: IconThemeData(
           size: SmartDropdownTokens.iconSize,
-          color: state.isSelected ? effectivePrimary : theme.colorScheme.onSurfaceVariant,
+          color: state.isSelected
+              ? effectivePrimary
+              : theme.colorScheme.onSurfaceVariant,
         ),
         child: icon!,
       );
@@ -101,13 +110,19 @@ class SmartDropdownItemTile<T> extends StatelessWidget {
       leadingWidget = const SizedBox.shrink();
     }
 
+    final hasLeading = customLeading != null ||
+        isMultiSelect ||
+        avatar != null ||
+        icon != null;
+
     Widget titleWidget;
     if (highlightMatches && state.searchQuery.isNotEmpty) {
       titleWidget = SearchUtils.buildHighlightedText(
         text: label,
         query: state.searchQuery,
         baseStyle: baseLabelStyle,
-        highlightColor: highlightColor ?? effectivePrimary.withValues(alpha: 0.25),
+        highlightColor:
+            highlightColor ?? effectivePrimary.withValues(alpha: 0.25),
       );
     } else {
       titleWidget = Text(
@@ -135,10 +150,11 @@ class SmartDropdownItemTile<T> extends StatelessWidget {
         onTap: state.isDisabled ? null : () => onTap(item),
         hoverColor: themeData.hoverColor ?? theme.hoverColor,
         child: Padding(
-          padding: themeData.itemPadding ?? SmartDropdownTokens.defaultItemPadding,
+          padding:
+              themeData.itemPadding ?? SmartDropdownTokens.defaultItemPadding,
           child: Row(
             children: [
-              if (isMultiSelect || avatar != null || icon != null) ...[
+              if (hasLeading) ...[
                 leadingWidget,
                 const SizedBox(width: SmartDropdownTokens.spaceM),
               ],

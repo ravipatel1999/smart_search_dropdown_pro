@@ -25,7 +25,8 @@ class SmartDropdownController<T> extends ChangeNotifier {
   bool get isOpen => _isOpen;
   String get searchQuery => _searchQuery;
   bool get hasMore => _hasMore;
-  T? get selectedItem => _selectedItems.isNotEmpty ? _selectedItems.first : null;
+  T? get selectedItem =>
+      _selectedItems.isNotEmpty ? _selectedItems.first : null;
   List<T> get selectedItems => List.unmodifiable(_selectedItems);
 
   VoidCallback? _onRefresh;

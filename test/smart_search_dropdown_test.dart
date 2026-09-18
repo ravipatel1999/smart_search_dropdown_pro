@@ -14,9 +14,9 @@ void main() {
             padding: const EdgeInsets.all(16.0),
             child: SmartSearchDropdown<String>(
               key: const Key('my_dropdown'),
-              items: const ['Sunshine Hospital', 'Everest Hospital', 'City Care Hospital'],
+              items: const ['Product Alpha', 'Product Beta', 'Product Gamma'],
               value: selected,
-              hintText: 'Select Facility',
+              hintText: 'Select Product',
               popup: const SmartDropdownPopupConfig(
                 presentation: DropdownPresentation.dialog,
               ),
@@ -31,23 +31,23 @@ void main() {
     );
 
     // Verify hint text is rendered
-    expect(find.text('Select Facility'), findsOneWidget);
+    expect(find.text('Select Product'), findsOneWidget);
 
     // Tap dropdown trigger box
     await tester.tap(find.byKey(const Key('my_dropdown')));
     await tester.pumpAndSettle();
 
     // Verify dialog opened with items
-    expect(find.text('Sunshine Hospital'), findsOneWidget);
-    expect(find.text('Everest Hospital'), findsOneWidget);
-    expect(find.text('City Care Hospital'), findsOneWidget);
+    expect(find.text('Product Alpha'), findsOneWidget);
+    expect(find.text('Product Beta'), findsOneWidget);
+    expect(find.text('Product Gamma'), findsOneWidget);
 
-    // Tap 'Everest Hospital'
-    await tester.tap(find.text('Everest Hospital'));
+    // Tap 'Product Beta'
+    await tester.tap(find.text('Product Beta'));
     await tester.pumpAndSettle();
 
     // Verify selection callback fired
-    expect(selected, equals('Everest Hospital'));
+    expect(selected, equals('Product Beta'));
   });
 
   testWidgets('SmartSearchDropdown filters items on search query input',
@@ -59,8 +59,8 @@ void main() {
             padding: const EdgeInsets.all(16.0),
             child: SmartSearchDropdown<String>(
               key: const Key('my_dropdown'),
-              items: const ['Sunshine Hospital', 'Everest Hospital', 'City Care Hospital'],
-              hintText: 'Select Facility',
+              items: const ['Product Alpha', 'Product Beta', 'Product Gamma'],
+              hintText: 'Select Product',
               popup: const SmartDropdownPopupConfig(
                 presentation: DropdownPresentation.dialog,
               ),
@@ -76,16 +76,17 @@ void main() {
     await tester.tap(find.byKey(const Key('my_dropdown')));
     await tester.pumpAndSettle();
 
-    // Type query 'Everest' into search field
-    await tester.enterText(find.byType(TextField), 'Everest');
+    // Type query 'Beta' into search field
+    await tester.enterText(find.byType(TextField), 'Beta');
     await tester.pumpAndSettle();
 
     // Verify filtering
-    expect(find.text('Everest Hospital'), findsOneWidget);
-    expect(find.text('Sunshine Hospital'), findsNothing);
+    expect(find.text('Product Beta'), findsOneWidget);
+    expect(find.text('Product Alpha'), findsNothing);
   });
 
-  testWidgets('SmartSearchDropdown renders labelText, prefixIcon, trailingLabelWidget, and loader',
+  testWidgets(
+      'SmartSearchDropdown renders labelText, prefixIcon, trailingLabelWidget, and loader',
       (WidgetTester tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -94,16 +95,18 @@ void main() {
             padding: const EdgeInsets.all(16.0),
             child: SmartSearchDropdown<String>(
               key: const Key('my_dropdown_full'),
-              labelText: 'Facility Type *',
-              prefixIcon: const Icon(Icons.local_hospital, key: Key('prefix_icon')),
-              trailingLabelWidget: const Icon(Icons.add, key: Key('trailing_icon')),
+              labelText: 'Product Category *',
+              prefixIcon:
+                  const Icon(Icons.shopping_bag, key: Key('prefix_icon')),
+              trailingLabelWidget:
+                  const Icon(Icons.add, key: Key('trailing_icon')),
               loader: (query, page) async {
                 return DropdownPageResult(
-                  items: ['General Hospital', 'Dental Care'],
+                  items: ['Category A', 'Category B'],
                   hasMore: false,
                 );
               },
-              hintText: 'Select Facility',
+              hintText: 'Select Category',
               onChanged: (_) {},
             ),
           ),
@@ -114,7 +117,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // Verify labelText and asterisks are present
-    expect(find.text('Facility Type'), findsOneWidget);
+    expect(find.text('Product Category'), findsOneWidget);
     expect(find.text(' *'), findsOneWidget);
 
     // Verify prefixIcon and trailingLabelWidget are rendered
@@ -122,7 +125,8 @@ void main() {
     expect(find.byKey(const Key('trailing_icon')), findsOneWidget);
   });
 
-  testWidgets('SmartSearchDropdown multi-select supports maxVisibleChips and overflowChipBuilder',
+  testWidgets(
+      'SmartSearchDropdown multi-select supports maxVisibleChips and overflowChipBuilder',
       (WidgetTester tester) async {
     await tester.pumpWidget(
       MaterialApp(
@@ -159,7 +163,7 @@ void main() {
           body: Form(
             key: formKey,
             child: SmartSearchDropdownFormField<String>(
-              items: const ['Facility A', 'Facility B'],
+              items: const ['Option A', 'Option B'],
               validator: (val) => val == null ? 'Selection required' : null,
               onSaved: (val) => submittedValue = val,
             ),
@@ -187,7 +191,8 @@ void main() {
     expect(find.text('Selection required'), findsNothing);
   });
 
-  testWidgets('SmartDropdownController helper methods work as expected', (WidgetTester tester) async {
+  testWidgets('SmartDropdownController helper methods work as expected',
+      (WidgetTester tester) async {
     final controller = SmartDropdownController<String>();
     bool refreshed = false;
 

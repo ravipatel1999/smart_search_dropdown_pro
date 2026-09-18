@@ -1,508 +1,202 @@
 # Smart Search Dropdown Pro
 
-A highly flexible, production-ready, type-safe searchable dropdown component for Flutter applications. Provides a unified widget API to build single-select, multi-select, grouped, async API-powered, paginated, and adaptive responsive dropdown interfaces.
+![Showcase](assets/smart_search_dropdown_pro_showcase.png)
 
 [![pub package](https://img.shields.io/pub/v/smart_search_dropdown_pro.svg)](https://pub.dev/packages/smart_search_dropdown_pro)
-[![pub points](https://img.shields.io/pub/points/smart_search_dropdown_pro)](https://pub.dev/packages/smart_search_dropdown_pro/score)
-[![popularity](https://img.shields.io/pub/popularity/smart_search_dropdown_pro)](https://pub.dev/packages/smart_search_dropdown_pro/score)
-[![likes](https://img.shields.io/pub/likes/smart_search_dropdown_pro)](https://pub.dev/packages/smart_search_dropdown_pro/score)
-[![GitHub Stars](https://img.shields.io/github/stars/ravipatel1999/smart_search_dropdown_pro)](https://github.com/ravipatel1999/smart_search_dropdown_pro)
-[![GitHub Issues](https://img.shields.io/github/issues/ravipatel1999/smart_search_dropdown_pro)](https://github.com/ravipatel1999/smart_search_dropdown_pro/issues)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+A powerful, developer-first Flutter searchable dropdown library designed for enterprise applications, SaaS platforms, e-commerce, admin dashboards, finance, CRM, and mobile/web/desktop applications.
 
 ---
 
-## 📸 Package Showcase
+## Key Features
 
-![SmartSearchDropdown Pro Showcase](https://raw.githubusercontent.com/ravipatel1999/smart_search_dropdown_pro/main/assets/smart_search_dropdown_pro_showcase.png)
-
-> **Asset Reference:** `assets/smart_search_dropdown_pro_showcase.png`
-> *Demonstrates single selection, multi-select chips, grouped categories, status badges, mobile bottom sheets, and dark mode themes.*
-
----
-
-## 💡 About Smart Search Dropdown Pro
-
-Building dropdown inputs in Flutter often requires mixing multiple specialized packages when requirements grow to include search filtering, multi-selection chips, remote API fetching, or mobile bottom sheets.
-
-`SmartSearchDropdownPro` consolidates these features into a single, cohesive generic component (`SmartSearchDropdown<T>`). Whether you need a standard Flutter searchable dropdown, a Flutter autocomplete dropdown, a Flutter multi-select dropdown with chip tags, or a server-side paginated list, this package provides a clean, declarative API.
-
-### Key Highlights
-
-- 🎯 **Single & Multi-Select**: Seamlessly switch between single value selection and multi-select chip tags.
-- ⚡ **Type-Safe Generic (`<T>`)**: Directly handles custom Dart model classes, enums, numbers, and strings.
-- 🔍 **Instant Search & Autocomplete**: Supports `contains`, `startsWith`, `fuzzy`, and `custom` search matching algorithms with debouncing.
-- 🌐 **Async & Remote API Integration**: Built-in debounced searching, loading indicators, error views, and request handling for backend services.
-- 📄 **Infinite Scroll Pagination**: Built-in `SmartDropdownPaginationConfig` to trigger paged data fetching on scroll.
-- 📱 **Adaptive Responsive UI**: Automatically renders anchored popup menus on Desktop/Web/Tablet and BottomSheet or Modal Dialog on Mobile (<600px width).
-- 📝 **Flutter Form Field Wrapper**: Integrated `SmartSearchDropdownFormField<T>` for Flutter `Form` validation and autovalidate modes.
-- 🎮 **Programmatic Controller**: Control popup visibility, selections, and state programmatically via `SmartDropdownController<T>`.
-- 🎨 **Material 3 & Dark Theme Ready**: Automatically inherits theme colors and typography from `Theme.of(context)` with optional `SmartDropdownThemeData` customization.
-
----
-
-## 📦 Installation
-
-Add `smart_search_dropdown_pro` to your `pubspec.yaml`:
-
-```yaml
-dependencies:
-  smart_search_dropdown_pro: ^1.0.8
-```
-
-Import the package entrypoint in your Flutter code:
-
-```dart
-import 'package:smart_search_dropdown_pro/smart_search_dropdown.dart';
-```
-
----
-
-## 📝 TextFormField & InputDecoration Parity
-
-`SmartSearchDropdown` seamlessly integrates with native Flutter `InputDecoration`. You can specify labels, icons, borders, helper text, and fill colors just like a standard `TextFormField`.
-
-```dart
-SmartSearchDropdown<Patient>(
-  decoration: const InputDecoration(
-    labelText: 'Patient Name *',
-    hintText: 'Search patient by MRN or Name...',
-    prefixIcon: Icon(Icons.person_search),
-    suffixIcon: Icon(Icons.arrow_drop_down_circle),
-    filled: true,
-    border: OutlineInputBorder(
-      borderRadius: BorderRadius.all(Radius.circular(12)),
-    ),
-  ),
-  items: patients,
-  itemLabelBuilder: (patient) => patient.name,
-  itemSubtitleBuilder: (patient) => 'MRN: ${patient.mrn} • ${patient.primaryCondition}',
-  onChanged: (patient) {
-    print('Selected patient: ${patient?.name}');
-  },
-)
-```
+- ⚡ **Dual-Level API Architecture**: Use direct Level 1 boolean flags for clean 5-line setups or Level 2 configuration objects for deep customization.
+- 🔍 **Async API Search with Race-Condition Protection**: Built-in debouncing, request generation tokens, loading/error states, and item deduplication.
+- 📦 **Infinite Scroll Pagination**: Native paged loading support for large remote datasets.
+- 🏷️ **Multi-Select & Custom Chips**: Tri-state header checkboxes (`Select All` / `Clear All`), overflow counters (`+N more`), and custom chip UI builders.
+- 🎨 **TextFormField & InputDecoration Compatible**: Native Flutter Form validation, `autovalidateMode`, and custom decoration styling.
+- 📁 **Categorized Grouping**: Group items into sticky headers using custom category extractors.
+- 📱 **Adaptive Responsive Engine**: Auto-switch between desktop popups, dialogs, and mobile bottom sheets seamlessly.
 
 ---
 
 ## 🚀 Quick Start
 
-Here is a minimal Flutter search dropdown implementation:
+### 1. Simple Single Selection (Level 1 API)
 
 ```dart
-import 'package:flutter/material.dart';
-import 'package:smart_search_dropdown_pro/smart_search_dropdown.dart';
-
-class QuickStartExample extends StatefulWidget {
-  const QuickStartExample({super.key});
-
-  @override
-  State<QuickStartExample> createState() => _QuickStartExampleState();
-}
-
-class _QuickStartExampleState extends State<QuickStartExample> {
-  String? selectedHospital;
-
-  final List<String> hospitals = const [
-    'Sunshine Hospital',
-    'Everest Hospital',
-    'City Care Hospital',
-    'Metro Health Center',
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Flutter Search Dropdown')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: SmartSearchDropdown<String>(
-          items: hospitals,
-          value: selectedHospital,
-          hintText: 'Select Hospital',
-          onChanged: (value) {
-            setState(() {
-              selectedHospital = value;
-            });
-          },
-        ),
-      ),
-    );
-  }
-}
+SmartSearchDropdown<Product>(
+  labelText: 'Product Catalog *',
+  hintText: 'Search products...',
+  items: products,
+  value: selectedProduct,
+  onChanged: (product) {
+    print('Selected product: ${product?.title}');
+  },
+  itemLabelBuilder: (p) => p.title,
+  itemSubtitleBuilder: (p) => '${p.category} • \$${p.price}',
+  itemIconBuilder: (p) => const Icon(Icons.shopping_bag_outlined),
+  showSearch: true,
+  showClearButton: true,
+);
 ```
 
----
+### 2. Multi-Select with Custom Chips
 
-## 🎨 16 UI Variations
-
-Explore how `SmartSearchDropdown<T>` accommodates different UI specifications using dedicated configuration objects.
-
-### 1. Basic Searchable Dropdown
-A clean single-select Flutter search dropdown:
 ```dart
-SmartSearchDropdown<Facility>(
-  items: facilities,
-  value: selectedFacility,
-  itemLabelBuilder: (facility) => facility.name,
-  hintText: 'Select Facility',
-  onChanged: (facility) => setState(() => selectedFacility = facility),
-)
-```
-
-### 2. Searchable Dropdown with Icons
-A Flutter dropdown with icons displayed alongside each item label:
-```dart
-SmartSearchDropdown<Facility>(
-  items: facilities,
-  value: selectedFacility,
-  itemLabelBuilder: (facility) => facility.name,
-  itemIconBuilder: (facility) => Icon(facility.icon),
-  hintText: 'Select Facility',
-  onChanged: (facility) => setState(() => selectedFacility = facility),
-)
-```
-
-### 3. Searchable Dropdown with Descriptions
-Display subtitle details for detailed item views:
-```dart
-SmartSearchDropdown<Facility>(
-  items: facilities,
-  value: selectedFacility,
-  itemLabelBuilder: (facility) => facility.name,
-  itemSubtitleBuilder: (facility) => facility.location,
-  itemIconBuilder: (facility) => Icon(facility.icon),
-  hintText: 'Select Facility',
-  onChanged: (facility) => setState(() => selectedFacility = facility),
-)
-```
-
-### 4. Searchable Dropdown with Logos / Avatars
-A Flutter dropdown with avatars or image badges:
-```dart
-SmartSearchDropdown<Facility>(
-  items: facilities,
-  value: selectedFacility,
-  itemLabelBuilder: (facility) => facility.name,
-  itemAvatarBuilder: (facility) => CircleAvatar(
-    radius: 14,
-    child: Text(facility.name[0]),
-  ),
-  hintText: 'Select Facility',
-  onChanged: (facility) => setState(() => selectedFacility = facility),
-)
-```
-
-### 5. Grouped Dropdown
-Organize items under category headers:
-```dart
-SmartSearchDropdown<Facility>(
-  items: facilities,
-  value: selectedFacility,
-  itemLabelBuilder: (facility) => facility.name,
-  groupBy: (facility) => facility.category,
-  hintText: 'Select Facility',
-  onChanged: (facility) => setState(() => selectedFacility = facility),
-)
-```
-
-### 6. Multi-Select Dropdown
-A Flutter multi-select dropdown rendering choices as removable input chips:
-```dart
-SmartSearchDropdown<Facility>.multi(
-  items: facilities,
-  selectedItems: selectedFacilities,
-  itemLabelBuilder: (facility) => facility.name,
-  hintText: 'Select Facilities',
-  onMultiChanged: (facilities) => setState(() => selectedFacilities = facilities),
-)
-```
-
-### 7. Select All / Clear All
-Enable batch actions inside the multi-select header:
-```dart
-SmartSearchDropdown<Facility>.multi(
-  items: facilities,
-  selectedItems: selectedFacilities,
-  itemLabelBuilder: (facility) => facility.name,
+SmartSearchDropdown<Country>.multi(
+  labelText: 'Target Operating Regions',
+  hintText: 'Select countries...',
+  items: countries,
+  selectedItems: selectedCountries,
+  onMultiChanged: (countries) {
+    print('Selected ${countries.length} countries');
+  },
+  itemLabelBuilder: (c) => '${c.flag} ${c.name}',
   showSelectAll: true,
   showClearAll: true,
-  hintText: 'Select Facilities',
-  onMultiChanged: (facilities) => setState(() => selectedFacilities = facilities),
-)
-```
-
-### 8. Recent & Popular Items
-Pin frequently or recently selected items to the top of the popup:
-```dart
-SmartSearchDropdown<Facility>(
-  items: facilities,
-  value: selectedFacility,
-  itemLabelBuilder: (facility) => facility.name,
-  recent: SmartDropdownRecentConfig(
-    enabled: true,
-    recentItems: recentFacilities,
-    popularItems: popularFacilities,
-  ),
-  hintText: 'Select Facility',
-  onChanged: (facility) => setState(() => selectedFacility = facility),
-)
-```
-
-### 9. Status / Tags
-Attach status indicators or custom tags to list options:
-```dart
-SmartSearchDropdown<Facility>(
-  items: facilities,
-  value: selectedFacility,
-  itemLabelBuilder: (facility) => facility.name,
-  itemStatusBuilder: (facility) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-    decoration: BoxDecoration(
-      color: Colors.green.withOpacity(0.2),
-      borderRadius: BorderRadius.circular(12),
-    ),
-    child: Text(
-      facility.status,
-      style: const TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 11),
-    ),
-  ),
-  hintText: 'Select Facility',
-  onChanged: (facility) => setState(() => selectedFacility = facility),
-)
-```
-
-### 10. Infinite Scroll / Load More
-A Flutter paginated dropdown fetching more items on scroll:
-```dart
-SmartSearchDropdown<Facility>(
-  items: facilities,
-  value: selectedFacility,
-  itemLabelBuilder: (facility) => facility.name,
-  pagination: SmartDropdownPaginationConfig(
-    enabled: true,
-    pageSize: 10,
-    onLoadMore: (page) async {
-      return await repository.fetchFacilities(page: page, pageSize: 10);
-    },
-  ),
-  hintText: 'Select Facility',
-  onChanged: (facility) => setState(() => selectedFacility = facility),
-)
-```
-
-### 11. Create New Option
-Allow users to create and select a new option on the fly:
-```dart
-SmartSearchDropdown<String>(
-  items: facilityNames,
-  value: selectedName,
-  hintText: 'Type to search or create...',
-  onCreateOption: (query) async {
-    final created = await repository.createFacility(query);
-    setState(() => facilityNames.add(created));
-    return created;
-  },
-  onChanged: (name) => setState(() => selectedName = name),
-)
-```
-
-### 12. Advanced Filters
-Inject custom filter header widgets into the dropdown popup:
-```dart
-SmartSearchDropdown<Facility>(
-  items: filteredFacilities,
-  value: selectedFacility,
-  itemLabelBuilder: (facility) => facility.name,
-  filters: SmartDropdownFilterConfig(
-    enabled: true,
-    builder: (context, controller) {
-      return Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: DropdownButton<String>(
-          value: selectedCategory,
-          isExpanded: true,
-          items: categoryMenuItems,
-          onChanged: (category) => setState(() => selectedCategory = category!),
-        ),
-      );
-    },
-  ),
-  hintText: 'Select Facility',
-  onChanged: (facility) => setState(() => selectedFacility = facility),
-)
-```
-
-### 13. Rich Item Layout
-Completely override the list item layout using `itemBuilder`:
-```dart
-SmartSearchDropdown<Facility>(
-  items: facilities,
-  value: selectedFacility,
-  itemLabelBuilder: (facility) => facility.name,
-  itemBuilder: (context, facility, state) {
-    return ListTile(
-      leading: Icon(facility.icon),
-      title: Text(facility.name),
-      subtitle: Text('${facility.category} • ${facility.location}'),
-      trailing: state.isSelected ? const Icon(Icons.check_circle, color: Colors.blue) : null,
-    );
-  },
-  hintText: 'Select Facility',
-  onChanged: (facility) => setState(() => selectedFacility = facility),
-)
-```
-
-### 14. Dark Theme
-A Flutter dark mode dropdown using ambient theme inheritance or explicit custom themes:
-```dart
-SmartSearchDropdownTheme(
-  data: const SmartDropdownThemeData(
-    surfaceColor: Color(0xFF1E293B),
-    hoverColor: Color(0xFF334155),
-    labelStyle: TextStyle(color: Colors.white),
-  ),
-  child: SmartSearchDropdown<Facility>(
-    items: facilities,
-    value: selectedFacility,
-    itemLabelBuilder: (facility) => facility.name,
-    hintText: 'Select Facility',
-    onChanged: (facility) => setState(() => selectedFacility = facility),
-  ),
-)
-```
-
-### 15. Custom Empty / Error / Loading States
-Customize fallback UI builders for empty queries, network errors, or loading indicators:
-```dart
-SmartSearchDropdown<Facility>(
-  items: facilities,
-  value: selectedFacility,
-  itemLabelBuilder: (facility) => facility.name,
-  emptyBuilder: (context) => const Center(
-    child: Padding(
-      padding: EdgeInsets.all(24.0),
-      child: Text('No matching facilities found'),
-    ),
-  ),
-  errorBuilder: (context, error) => Center(
-    child: Text('Error loading facilities: $error'),
-  ),
-  loadingBuilder: (context) => const Center(
-    child: CircularProgressIndicator(),
-  ),
-  hintText: 'Select Facility',
-  onChanged: (facility) => setState(() => selectedFacility = facility),
-)
-```
-
-### 16. Responsive / Adaptive Presentation
-A Flutter responsive dropdown adapting popup menus for desktop and bottom sheets for mobile screens:
-```dart
-SmartSearchDropdown<Facility>(
-  items: facilities,
-  value: selectedFacility,
-  itemLabelBuilder: (facility) => facility.name,
-  popup: const SmartDropdownPopupConfig(
-    presentation: DropdownPresentation.adaptive,
-    mobileTitle: 'Select Facility',
-  ),
-  hintText: 'Select Facility',
-  onChanged: (facility) => setState(() => selectedFacility = facility),
-)
+  showCheckbox: true,
+);
 ```
 
 ---
 
-## 🌐 API & Remote Search
+## 📘 Detailed Feature Documentation
 
-`SmartSearchDropdown` supports asynchronous data sources and backend API search queries out of the box using the `asyncSearch` callback.
+### 1. Dual-Level API Architecture
 
-This makes it ideal for real-world application use cases such as:
-- Hospital search
-- Facility search
-- Doctor / provider search
-- Patient search
-- Department search
-- City / country search
-- Remote autocomplete inputs
-- Server-side search queries
-- API-powered dropdowns
-- Asynchronous search operations
+#### Overview & Purpose
+Provides developers with two ways to configure the dropdown: Level 1 for rapid prototyping and clean UI code, and Level 2 for enterprise design systems needing centralized configuration objects.
 
-### Remote API Autocomplete Example
+#### When & Why to Use It
+- **Level 1**: Ideal for 90% of use cases where you simply want to toggle search, clear button, or pagination with boolean flags directly on the widget.
+- **Level 2**: Ideal when creating shared component wrappers or theme configurations across a large project.
 
+#### Code Example
 ```dart
-SmartSearchDropdown<Facility>(
+// Level 1: Clean Boolean Flags
+SmartSearchDropdown<User>(
+  items: users,
+  itemLabelBuilder: (u) => u.name,
+  showSearch: true,
+  showClearButton: true,
+  showScrollbar: true,
+  enableAdaptive: true,
+  onChanged: (user) {},
+);
+
+// Level 2: Advanced Configuration Objects
+SmartSearchDropdown<User>(
+  items: users,
+  itemLabelBuilder: (u) => u.name,
+  config: SmartDropdownConfig<User>(
+    search: const SmartDropdownSearchConfig(
+      enabled: true,
+      debounceDuration: Duration(milliseconds: 200),
+      searchMode: SearchMode.contains,
+    ),
+    popup: SmartDropdownPopupConfig(
+      maxHeight: 300,
+      elevation: 8.0,
+      presentation: DropdownPresentation.adaptive,
+    ),
+  ),
+  onChanged: (user) {},
+);
+```
+
+---
+
+### 2. Async Remote API Search with Race-Condition Protection
+
+#### Overview & Purpose
+Allows fetching dropdown items dynamically from a REST or GraphQL API based on user search input. Includes automatic request generation tokens to eliminate out-of-order response race conditions.
+
+#### When & Why to Use It
+Use whenever querying remote servers (e.g. database search, user directories, autocomplete APIs) where responses may arrive out of sequence.
+
+#### Code Example
+```dart
+SmartSearchDropdown<Framework>(
+  labelText: 'Tech Stack Framework',
+  hintText: 'Type to search remote API...',
+  debounceMs: 300,
   asyncSearch: (query) async {
-    // Perform server-side search request
-    final response = await http.get(
-      Uri.parse('https://api.example.com/facilities?search=$query'),
-    );
-    return parseFacilities(response.body);
+    final response = await http.get(Uri.parse('https://api.example.com/search?q=$query'));
+    final List data = jsonDecode(response.body);
+    return data.map((json) => Framework.fromJson(json)).toList();
   },
-  search: const SmartDropdownSearchConfig(
-    hintText: 'Type to search remote facilities...',
-    debounceDuration: Duration(milliseconds: 300),
-  ),
-  itemLabelBuilder: (facility) => facility.name,
-  hintText: 'Search Facility',
-  onChanged: (facility) {
-    setState(() => selectedFacility = facility);
-  },
-)
+  itemLabelBuilder: (f) => f.name,
+  itemSubtitleBuilder: (f) => 'Language: ${f.language}',
+  itemIdExtractor: (f) => f.id, // Deduplicates results by ID
+  onChanged: (framework) {},
+);
 ```
-
-When `asyncSearch` is provided, `SmartSearchDropdown` manages request debouncing (300ms default), triggers progress spinners, and displays error messages automatically if an exception occurs during the API call.
 
 ---
 
-## 📄 Infinite Scroll & API Pagination
+### 3. Infinite Scroll Pagination
 
-For applications dealing with large backend datasets, `SmartSearchDropdown` provides infinite scroll pagination using `SmartDropdownPaginationConfig`.
+#### Overview & Purpose
+Loads large datasets in paged chunks as the user scrolls down the dropdown popup.
 
-The package manages the scroll trigger and load-more lifecycle, while your application's API repository determines the page number and record size returned per request.
+#### When & Why to Use It
+Essential for datasets containing thousands of items (e.g., customer databases, product catalogs) to keep memory overhead low and rendering smooth.
 
-### Paginated Flow Overview
-
-1. **Initial Load**: Popup opens showing Page 1 (e.g. 10 records).
-2. **Scroll Trigger**: User scrolls near the bottom of the list.
-3. **Load More Callback**: `onLoadMore` is invoked with `page: 2`.
-4. **Appended Records**: The next 10 records are fetched and appended seamlessly to the list view.
-
-### Paginated API Example
-
+#### Code Example
 ```dart
-SmartSearchDropdown<Facility>(
-  items: initialFacilitiesPage, // First 10 records
-  value: selectedFacility,
-  itemLabelBuilder: (facility) => facility.name,
-  pagination: SmartDropdownPaginationConfig(
-    enabled: true,
-    pageSize: 10,
-    scrollThreshold: 200.0,
-    onLoadMore: (page) async {
-      // Fetch Page N from backend repository (e.g., page 2 -> next 10 records)
-      final List<Facility> nextPageItems = await apiRepository.getFacilities(
-        page: page,
-        pageSize: 10,
-      );
-      return nextPageItems;
-    },
-  ),
-  hintText: 'Select Facility from large dataset',
-  onChanged: (facility) {
-    setState(() => selectedFacility = facility);
+SmartSearchDropdown<Product>(
+  labelText: 'Paginated Inventory',
+  hintText: 'Scroll down to load next page',
+  pageSize: 20,
+  loader: (query, page) async {
+    final result = await fetchProductPage(query: query, page: page, limit: 20);
+    return DropdownPageResult(
+      items: result.products,
+      hasMore: result.hasMorePages,
+    );
   },
-)
+  itemLabelBuilder: (p) => p.title,
+  onChanged: (product) {},
+);
 ```
 
 ---
 
-## 📝 Form Validation Integration
+### 4. Categorized Grouping
 
-Wrap your dropdown in standard Flutter `Form` widgets using `SmartSearchDropdownFormField<T>`. It exposes standard Flutter `FormField` properties like `validator`, `onSaved`, and `autovalidateMode`.
+#### Overview & Purpose
+Groups items into categorical sections with customizable group headers.
 
+#### When & Why to Use It
+Great for multi-category products, location menus by continent/state, or settings grouped by domain.
+
+#### Code Example
+```dart
+SmartSearchDropdown<Product>(
+  labelText: 'Categorized Store Catalog',
+  items: products,
+  groupBy: (p) => p.category,
+  enableGrouping: true,
+  groupHeaderBuilder: (context, categoryName) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    color: Colors.indigo.withOpacity(0.1),
+    child: Text(categoryName, style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
+  ),
+  itemLabelBuilder: (p) => p.title,
+  onChanged: (product) {},
+);
+```
+
+---
+
+### 5. Flutter Form Integration (`SmartSearchDropdownFormField`)
+
+#### Overview & Purpose
+Wraps `SmartSearchDropdown` inside a standard Flutter `FormField<T>`, providing full compatibility with `FormState`, `validator`, `onSaved`, and `autovalidateMode`.
+
+#### Code Example
 ```dart
 final _formKey = GlobalKey<FormState>();
 
@@ -510,88 +204,80 @@ Form(
   key: _formKey,
   child: Column(
     children: [
-      SmartSearchDropdownFormField<Facility>(
-        items: facilities,
-        itemLabelBuilder: (facility) => facility.name,
-        hintText: 'Select required facility',
-        validator: (value) {
-          if (value == null) {
-            return 'Please select a facility to continue';
-          }
-          return null;
-        },
-        onSaved: (value) => savedFacility = value,
+      SmartSearchDropdownFormField<Country>(
+        labelText: 'Shipping Country *',
+        hintText: 'Select country',
+        items: countries,
+        itemLabelBuilder: (c) => c.name,
+        validator: (value) => value == null ? 'Please select a shipping country' : null,
+        onSaved: (value) => saveCountry(value),
       ),
-      const SizedBox(height: 16),
       ElevatedButton(
         onPressed: () {
           if (_formKey.currentState!.validate()) {
             _formKey.currentState!.save();
           }
         },
-        child: const Text('Submit Form'),
+        child: const Text('Submit Order'),
       ),
     ],
   ),
-)
+);
 ```
 
 ---
 
-## 🎮 Programmatic Controller API
+## 📊 Feature Comparison Matrix
 
-Control dropdown overlay state programmatically using `SmartDropdownController<T>`:
-
-```dart
-final controller = SmartDropdownController<Facility>();
-
-// Open dropdown popup programmatically
-controller.open();
-
-// Close dropdown popup programmatically
-controller.close();
-
-// Toggle open/close overlay state
-controller.toggle();
-
-// Select item programmatically
-controller.select(facility);
-
-// Deselect item programmatically
-controller.deselect(facility);
-
-// Select all items in multi-select mode
-controller.selectAll(facilitiesList);
-
-// Clear all selections
-controller.clearAll();
-
-// Update search query programmatically
-controller.setSearchQuery('Everest');
-```
+| Feature | Standard DropdownButton | Generic 3rd-Party Packages | Smart Search Dropdown Pro |
+| :--- | :---: | :---: | :---: |
+| **Dual-Level API (Simple & Advanced)** | ❌ No | ❌ No | ✅ **Yes (Level 1 & Level 2)** |
+| **Async Search Race Condition Protection** | ❌ No | ⚠️ Basic | ✅ **Yes (Session Tokens)** |
+| **Item Deduplication (`itemIdExtractor`)** | ❌ No | ❌ No | ✅ **Yes** |
+| **Infinite Scroll Pagination (`loader`)** | ❌ No | ❌ No | ✅ **Yes** |
+| **Multi-Select & Dismissible Chips** | ❌ No | ⚠️ Partial | ✅ **Yes (Full Customization)** |
+| **Categorized Sticky Group Headers** | ❌ No | ❌ No | ✅ **Yes** |
+| **Adaptive Responsive Engine (Popup/Sheet)**| ❌ No | ❌ No | ✅ **Yes (Auto-switch)** |
+| **Form Integration & InputDecoration** | ❌ Manual | ⚠️ Limited | ✅ **Native `FormField`** |
+| **Programmatic Controller** | ❌ No | ⚠️ Basic | ✅ **Full Controller API** |
 
 ---
 
-## 🛠️ Public Package Classes & Architecture
+## 📖 API Reference Table
 
-Below are the key public classes provided by `smart_search_dropdown_pro`:
-
-- **`SmartSearchDropdown<T>`**: The main widget for single and multi-selection searchable dropdowns.
-- **`SmartSearchDropdownFormField<T>`**: FormField wrapper enabling Flutter `Form` validation.
-- **`SmartDropdownController<T>`**: Controller for programmatic state manipulation and callback listening.
-- **`SmartDropdownConfig<T>`**: Master configuration object aggregating sub-configurations.
-- **`SmartDropdownSearchConfig`**: Search behavior settings (mode, debouncing, min characters, custom matching).
-- **`SmartDropdownSelectionConfig`**: Selection mode settings (single/multiple, select all, clear all, max selections).
-- **`SmartDropdownPopupConfig`**: Presentation layout settings (popup, menu, bottomSheet, dialog, adaptive, height, offset).
-- **`SmartDropdownFilterConfig<T>`**: Custom header filter builder configuration.
-- **`SmartDropdownPaginationConfig<T>`**: Infinite scroll pagination configuration and `onLoadMore` callbacks.
-- **`SmartDropdownCreateOptionConfig<T>`**: Custom option creation configuration for unlisted queries.
-- **`SmartDropdownRecentConfig<T>`**: Configurations for pinning recent and popular items.
-- **`SmartDropdownThemeData`**: Custom theme configuration object for colors, text styles, padding, and borders.
-- **`SmartSearchDropdownTheme`**: Inherited widget for providing `SmartDropdownThemeData` down the widget tree.
+| Parameter | Type | Default | Description |
+| :--- | :--- | :--- | :--- |
+| `items` | `List<T>?` | `null` | Static item list to display in the dropdown. |
+| `value` | `T?` | `null` | Currently selected item for single-selection mode. |
+| `selectedItems` | `List<T>?` | `null` | Currently selected items for multi-selection mode. |
+| `onChanged` | `ValueChanged<T?>?` | `null` | Callback fired when single selection changes. |
+| `onMultiChanged` | `ValueChanged<List<T>>?` | `null` | Callback fired when multi-selection changes. |
+| `asyncSearch` | `Future<List<T>> Function(String)?` | `null` | Async search callback for remote API queries. |
+| `loader` | `Future<DropdownPageResult<T>> Function(String, int)?` | `null` | Paged data loader callback for infinite scroll. |
+| `showSearch` | `bool?` | `true` | Toggles search field visibility inside the popup. |
+| `showClearButton` | `bool?` | `true` | Displays clear button in trigger when item selected. |
+| `showDropdownIcon` | `bool?` | `true` | Toggles dropdown arrow icon on the trigger box. |
+| `showCheckbox` | `bool?` | `true` | Toggles checkboxes in multi-select popup tiles. |
+| `showSelectAll` | `bool?` | `true` | Toggles `Select All` header option in multi-select mode. |
+| `showClearAll` | `bool?` | `true` | Toggles `Clear All` header option in multi-select mode. |
+| `enablePagination` | `bool?` | `false` | Enables infinite scroll pagination. |
+| `enableGrouping` | `bool?` | `false` | Enables item grouping when `groupBy` is set. |
+| `enableAdaptive` | `bool?` | `false` | Auto-switches between popup and mobile bottom sheet. |
+| `itemLabelBuilder` | `String Function(T)?` | `item.toString()` | Extracts string label from item object. |
+| `itemSubtitleBuilder` | `String? Function(T)?` | `null` | Builds tile subtitle description text. |
+| `itemIconBuilder` | `Widget? Function(T)?` | `null` | Builds leading icon for item tile. |
+| `itemAvatarBuilder` | `Widget? Function(T)?` | `null` | Builds leading circular avatar for item tile. |
+| `itemLeadingBuilder` | `Widget? Function(T)?` | `null` | Custom leading builder for item tile. |
+| `isItemDisabled` | `bool Function(T)?` | `null` | Callback to disable interaction on specific items. |
+| `itemIdExtractor` | `Object Function(T)?` | `null` | Unique identifier extractor for item deduplication. |
+| `itemEquality` | `bool Function(T, T)?` | `null` | Custom equality comparator function. |
+| `searchFieldBuilder` | `Widget Function(BuildContext, ValueChanged<String>)?` | `null` | Custom builder for popup search text field. |
+| `chipBuilder` | `Widget Function(BuildContext, T, VoidCallback)?` | `null` | Custom builder for selected chips in multi-select trigger. |
+| `config` | `SmartDropdownConfig<T>?` | `null` | Master configuration object for Level 2 API. |
+| `controller` | `SmartDropdownController<T>?` | `null` | External controller instance for programmatic control. |
 
 ---
 
-## 📜 License
+## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This package is released under the [MIT License](LICENSE).

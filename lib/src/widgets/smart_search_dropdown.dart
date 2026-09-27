@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import '../config/smart_dropdown_config.dart';
 import '../config/smart_dropdown_create_option_config.dart';
 import '../config/smart_dropdown_filter_config.dart';
@@ -761,6 +762,10 @@ class _SmartSearchDropdownState<T> extends State<SmartSearchDropdown<T>> {
   void _loadInitialItems() async {
     if (widget.items != null) {
       _currentItems = _deduplicateItems(List.from(widget.items!));
+      if (widget.loader == null &&
+          _effectiveConfig.pagination.onLoadMore == null) {
+        _controller.updateState(hasMore: false);
+      }
     } else if (widget.loader != null) {
       _fetchLoaderQuery('', isInitial: true);
     } else if (widget.asyncSearch != null) {
@@ -787,11 +792,13 @@ class _SmartSearchDropdownState<T> extends State<SmartSearchDropdown<T>> {
       final result = await widget.loader!(query, 1);
       if (_searchGeneration != generation) return;
       if (mounted) {
+        final bool hasMore = result.hasMore &&
+            (result.items.length >= _effectiveConfig.pagination.pageSize);
         setState(() {
           _currentItems = _deduplicateItems(result.items);
           _isLoading = false;
         });
-        _controller.updateState(isLoading: false, hasMore: result.hasMore);
+        _controller.updateState(isLoading: false, hasMore: hasMore);
         _updateOverlayState();
       }
     } catch (e) {
@@ -801,7 +808,7 @@ class _SmartSearchDropdownState<T> extends State<SmartSearchDropdown<T>> {
           _error = e.toString();
           _isLoading = false;
         });
-        _controller.updateState(isLoading: false, error: _error);
+        _controller.updateState(isLoading: false, error: _error, hasMore: false);
         _updateOverlayState();
       }
     }
@@ -914,7 +921,7 @@ class _SmartSearchDropdownState<T> extends State<SmartSearchDropdown<T>> {
           _currentItems = _deduplicateItems(results);
           _isLoading = false;
         });
-        _controller.updateState(isLoading: false);
+        _controller.updateState(isLoading: false, hasMore: false);
         _updateOverlayState();
       }
     } catch (e) {
@@ -924,7 +931,7 @@ class _SmartSearchDropdownState<T> extends State<SmartSearchDropdown<T>> {
           _error = e.toString();
           _isLoading = false;
         });
-        _controller.updateState(isLoading: false, error: _error);
+        _controller.updateState(isLoading: false, error: _error, hasMore: false);
         _updateOverlayState();
       }
     }
@@ -940,9 +947,11 @@ class _SmartSearchDropdownState<T> extends State<SmartSearchDropdown<T>> {
       final newItems =
           await _effectiveConfig.pagination.onLoadMore?.call(_currentPage);
       if (newItems != null && newItems.isNotEmpty) {
+        final bool hasMore = newItems.length >= _effectiveConfig.pagination.pageSize;
         setState(() {
           _currentItems.addAll(_deduplicateItems(newItems));
         });
+        _controller.updateState(hasMore: hasMore);
         _updateOverlayState();
       } else {
         _controller.updateState(hasMore: false);
@@ -1268,7 +1277,16 @@ class _SmartSearchDropdownState<T> extends State<SmartSearchDropdown<T>> {
 
   void _updateOverlayState() {
     if (_overlayEntry != null) {
-      _overlayEntry!.markNeedsBuild();
+      if (SchedulerBinding.instance.schedulerPhase ==
+          SchedulerPhase.persistentCallbacks) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (_overlayEntry != null) {
+            _overlayEntry!.markNeedsBuild();
+          }
+        });
+      } else {
+        _overlayEntry!.markNeedsBuild();
+      }
     }
   }
 

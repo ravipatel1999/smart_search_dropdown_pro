@@ -85,7 +85,7 @@ class _GlobalDeveloperPlaygroundState extends State<GlobalDeveloperPlayground>
           children: [
             Text('Smart Search Dropdown Pro',
                 style: TextStyle(fontWeight: FontWeight.bold)),
-            Text('Global Developer Playground (v1.0.9)',
+            Text('Global Developer Playground (v1.0.10)',
                 style: TextStyle(fontSize: 12)),
           ],
         ),

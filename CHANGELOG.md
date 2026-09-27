@@ -2,6 +2,16 @@
 
 All notable changes to this package are documented here.
 
+## 1.0.10
+
+### 🐛 Bug Fixes
+
+- Fixed continuous bottom loading spinner issue when API search/loader returns small item lists (e.g. 1 or 2 items).
+- Fixed `setState() or markNeedsBuild() called during build` exception when parent widget rebuilds or syncs controller selection state while dropdown popup is open.
+- Improved pagination footer state in `SmartDropdownPopup` to only render when `hasMore` and `_isFetchingMore` are actively true.
+- Fixed `hasMore` calculation across `_fetchLoaderQuery`, `_fetchAsyncQuery`, and `_handleLoadMore` when items returned are less than `pageSize`.
+- Added automated widget test coverage for short list loader responses with pagination enabled.
+
 ## 1.0.9
 
 ### ✨ New

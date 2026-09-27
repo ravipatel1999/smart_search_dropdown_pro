@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import '../config/smart_dropdown_config.dart';
 import '../controllers/smart_dropdown_controller.dart';
 import '../models/dropdown_group.dart';
@@ -108,10 +109,22 @@ class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
     }
   }
 
-  void _onControllerChanged() {
-    if (mounted) {
-      setState(() {});
+  void _safeSetState(VoidCallback fn) {
+    if (!mounted) return;
+    if (SchedulerBinding.instance.schedulerPhase ==
+        SchedulerPhase.persistentCallbacks) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          setState(fn);
+        }
+      });
+    } else {
+      setState(fn);
     }
+  }
+
+  void _onControllerChanged() {
+    _safeSetState(() {});
   }
 
   @override
@@ -132,10 +145,10 @@ class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
 
     if (maxScroll - currentScroll <= threshold) {
       if (widget.controller.hasMore) {
-        setState(() => _isFetchingMore = true);
+        _safeSetState(() => _isFetchingMore = true);
         await widget.controller.loadMore();
         if (mounted) {
-          setState(() => _isFetchingMore = false);
+          _safeSetState(() => _isFetchingMore = false);
         }
       }
     }
@@ -565,9 +578,13 @@ class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
         widget.controller.searchQuery.isNotEmpty &&
         widget.onCreateOption != null;
 
+    final bool showPaginationFooter = widget.config.pagination.enabled &&
+        widget.controller.hasMore &&
+        _isFetchingMore;
+
     final int totalCount = displayItems.length +
         (showCreateOption ? 1 : 0) +
-        (widget.config.pagination.enabled ? 1 : 0);
+        (showPaginationFooter ? 1 : 0);
 
     return ListView.builder(
       controller: _scrollController,
@@ -580,8 +597,7 @@ class _SmartDropdownPopupState<T> extends State<SmartDropdownPopup<T>> {
 
         final int itemIndex = showCreateOption ? index - 1 : index;
 
-        if (itemIndex == displayItems.length &&
-            widget.config.pagination.enabled) {
+        if (itemIndex == displayItems.length && showPaginationFooter) {
           if (widget.config.pagination.loadingFooterBuilder != null) {
             return widget.config.pagination.loadingFooterBuilder!(context);
           }

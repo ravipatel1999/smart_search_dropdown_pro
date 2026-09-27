@@ -211,4 +211,90 @@ void main() {
 
     controller.dispose();
   });
+
+  testWidgets('Loader returning small item list (1-2 items) does not render continuous loading spinner at bottom',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: SmartSearchDropdown<String>(
+              key: const Key('small_list_dropdown'),
+              hintText: 'Select Item',
+              enablePagination: true,
+              pageSize: 20,
+              search: const SmartDropdownSearchConfig(autoFocus: false),
+              popup: const SmartDropdownPopupConfig(
+                presentation: DropdownPresentation.dialog,
+              ),
+              loader: (query, page) async {
+                return DropdownPageResult(
+                  items: const ['MBBS Degree'],
+                  hasMore: false,
+                );
+              },
+              onChanged: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Open dropdown
+    await tester.tap(find.byKey(const Key('small_list_dropdown')));
+    await tester.pumpAndSettle();
+
+    // Verify item is present
+    expect(find.text('MBBS Degree'), findsOneWidget);
+
+    // Verify "Loading more..." footer or bottom spinner is NOT present
+    expect(find.text('Loading more...'), findsNothing);
+  });
+
+  testWidgets(
+      'didUpdateWidget during parent rebuild with open controller does not throw setState during build error',
+      (WidgetTester tester) async {
+    String selectedValue = 'Item A';
+    late StateSetter parentSetState;
+
+    await tester.pumpWidget(
+      StatefulBuilder(
+        builder: (context, setState) {
+          parentSetState = setState;
+          return MaterialApp(
+            home: Scaffold(
+              body: SmartSearchDropdown<String>(
+                key: const Key('rebuild_dropdown'),
+                value: selectedValue,
+                items: const ['Item A', 'Item B', 'Item C'],
+                search: const SmartDropdownSearchConfig(autoFocus: false),
+                popup: const SmartDropdownPopupConfig(
+                  presentation: DropdownPresentation.dialog,
+                ),
+                onChanged: (_) {},
+              ),
+            ),
+          );
+        },
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    // Open dropdown
+    await tester.tap(find.byKey(const Key('rebuild_dropdown')));
+    await tester.pumpAndSettle();
+
+    // Trigger parent rebuild while dropdown is open
+    parentSetState(() {
+      selectedValue = 'Item B';
+    });
+    await tester.pumpAndSettle();
+
+    // Verify no exception was thrown and selection updated cleanly
+    expect(find.text('Item B'), findsWidgets);
+  });
 }
